@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototipo de entradas y salidas · HospedaRuta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Plan: señalética vial. Azul petróleo + ámbar de señal. Barra lateral de índice y marco de pantalla de salida. */
+:root{
+  --ink:#14232e; --muted:#566872; --bg:#eef2f4; --surface:#ffffff; --line:#d3dce1;
+  --brand:#0f4c5c; --brand-ink:#ffffff; --accent:#f2a900; --accent-ink:#2a1d00;
+  --ok:#1b7a4b; --ok-bg:#e3f4ea; --warn:#9a5b00; --warn-bg:#fff1d6; --bad:#b3261e; --bad-bg:#fde8e6;
+  --shade:#f6f9fa; --font-display:'Barlow Condensed','Arial Narrow',Arial,sans-serif; --font-body:'Barlow',Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ink:#e6eef2; --muted:#9db0ba; --bg:#0e171d; --surface:#16232b; --line:#2a3b45;
+    --brand:#5fb4c9; --brand-ink:#08222a; --accent:#f2b92e; --accent-ink:#2a1d00;
+    --ok:#6fd09b; --ok-bg:#16352a; --warn:#f0b45a; --warn-bg:#3a2a10; --bad:#ff8e84; --bad-bg:#3d1b18; --shade:#1b2a33; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#e6eef2; --muted:#9db0ba; --bg:#0e171d; --surface:#16232b; --line:#2a3b45;
+  --brand:#5fb4c9; --brand-ink:#08222a; --accent:#f2b92e; --accent-ink:#2a1d00;
+  --ok:#6fd09b; --ok-bg:#16352a; --warn:#f0b45a; --warn-bg:#3a2a10; --bad:#ff8e84; --bad-bg:#3d1b18; --shade:#1b2a33; color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.45}
+h1,h2,h3{font-family:var(--font-display);margin:0;line-height:1.1;text-wrap:balance;letter-spacing:.01em}
+button{font:inherit;cursor:pointer}
+a{color:var(--brand)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.topbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 20px;background:var(--brand);color:var(--brand-ink)}
+.topbar b{font-family:var(--font-display);font-size:22px;letter-spacing:.03em}
+.topbar span{font-size:14px;opacity:.9}
+.topbar .tag{margin-left:auto;background:var(--accent);color:var(--accent-ink);padding:3px 10px;border-radius:3px;font-weight:600;font-size:13px}
+.layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:20px;max-width:1280px;margin:0 auto;padding:20px 16px 40px}
+nav.index{position:sticky;top:12px;align-self:start;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 8px}
+nav.index h3{font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding:10px 10px 4px}
+nav.index a{display:flex;gap:8px;align-items:baseline;padding:6px 10px;border-radius:4px;text-decoration:none;color:var(--ink);font-size:15px}
+nav.index a em{font-style:normal;font-family:var(--font-display);font-weight:700;color:var(--brand);min-width:38px}
+nav.index a:hover{background:var(--shade)}
+nav.index a[aria-current="page"]{background:var(--brand);color:var(--brand-ink)}
+nav.index a[aria-current="page"] em{color:var(--accent)}
+.stage{min-width:0}
+.crumb{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;color:var(--muted);font-size:14px}
+.crumb .id{font-family:var(--font-display);font-weight:700;font-size:20px;color:var(--brand);background:var(--surface);border:1px solid var(--line);padding:1px 10px;border-radius:3px}
+.frame{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.appnav{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--shade)}
+.appnav b{font-family:var(--font-display);font-size:20px;color:var(--brand);margin-right:12px}
+.appnav a{padding:4px 10px;border-radius:3px;text-decoration:none;color:var(--ink);font-size:14px}
+.appnav a.on{background:var(--brand);color:var(--brand-ink)}
+.appnav .who{margin-left:auto;font-size:13px;color:var(--muted)}
+.content{padding:20px 22px 24px}
+.content h1{font-size:30px;margin-bottom:4px}
+.content h2{font-size:22px;margin:18px 0 8px}
+.sub{color:var(--muted);margin:0 0 16px}
+.foot{border-top:1px solid var(--line);padding:10px 16px;display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);background:var(--shade)}
+.btn{border:0;border-radius:4px;padding:9px 16px;font-weight:600;background:var(--brand);color:var(--brand-ink)}
+.btn.alt{background:transparent;color:var(--brand);border:1.5px solid var(--brand)}
+.btn.go{background:var(--accent);color:var(--accent-ink)}
+.btn.bad{background:var(--bad);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{padding:5px 10px;font-size:14px}
+.filters{display:flex;gap:12px;flex-wrap:wrap;align-items:end;background:var(--shade);border:1px solid var(--line);padding:12px;border-radius:6px;margin-bottom:14px}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--muted);font-weight:500}
+select,input[type=date],input[type=number]{font:inherit;padding:7px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink)}
+.list{border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.row{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px;border-bottom:1px solid var(--line)}
+.row:nth-child(even){background:var(--shade)}
+.row:last-child{border-bottom:0}
+.thumb{width:64px;height:64px;border-radius:6px;background:var(--brand);display:grid;place-items:center}
+.row h3{font-size:21px}
+.meta{color:var(--muted);font-size:14px;margin-top:2px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.chip{font-size:13px;padding:2px 8px;border-radius:3px;background:var(--shade);border:1px solid var(--line)}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)} .pill.warn{background:var(--warn-bg);color:var(--warn)} .pill.bad{background:var(--bad-bg);color:var(--bad)} .pill.n{background:var(--shade);color:var(--muted);border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-weight:600;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;padding:8px 10px;border-bottom:2px solid var(--line)}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr:nth-child(even){background:var(--shade)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.scroll{overflow-x:auto}
+.room{border:1px solid var(--line);border-radius:6px;margin-bottom:12px;overflow:hidden}
+.room>header{padding:8px 12px;background:var(--shade);font-weight:600;display:flex;justify-content:space-between}
+.cartbar{position:sticky;bottom:0;display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--brand);color:var(--brand-ink);padding:10px 16px;border-radius:6px;margin-top:12px}
+.cartbar b{font-family:var(--font-display);font-size:20px}
+.cartbar .btn{margin-left:auto}
+.totals{margin-left:auto;max-width:340px;margin-top:12px}
+.totals div{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--line)}
+.totals .t{font-family:var(--font-display);font-size:26px;border:0;padding-top:10px}
+.note{border-left:5px solid var(--accent);background:var(--warn-bg);padding:10px 14px;border-radius:0 4px 4px 0;margin:14px 0;font-size:15px}
+.note.info{border-color:var(--brand);background:var(--shade)}
+.note.okk{border-color:var(--ok);background:var(--ok-bg)}
+.note.err{border-color:var(--bad);background:var(--bad-bg)}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.plan{border:1.5px solid var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:8px;background:var(--surface)}
+.plan.sel{border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 25%,transparent)}
+.plan h3{font-size:26px}
+.plan .p{font-family:var(--font-display);font-size:34px;color:var(--brand)}
+.plan ul{margin:0;padding-left:18px;color:var(--muted);font-size:14px}
+.steps{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;font-size:13px}
+.steps span{padding:4px 12px;border-radius:99px;background:var(--shade);border:1px solid var(--line);color:var(--muted)}
+.steps span.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.gate{max-width:560px;margin:0 auto;border:2px dashed var(--line);border-radius:10px;padding:22px;text-align:center}
+.gate .lock{font-size:13px;color:var(--muted)}
+.kv{display:grid;grid-template-columns:170px 1fr;gap:6px 12px;font-size:15px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;font-weight:500;word-break:break-word}
+.code{font-family:ui-monospace,Consolas,monospace;font-size:30px;letter-spacing:.12em;font-weight:700;padding:10px 16px;border:2px solid var(--ink);border-radius:4px;display:inline-block}
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tabs button{padding:6px 14px;border-radius:4px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.tabs button.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.paper{background:#fff;color:#111;max-width:620px;margin:0 auto;border:1px solid #999;box-shadow:0 4px 18px rgba(0,0,0,.18);padding:28px 32px;font-family:Arial,sans-serif;font-size:14px}
+.paper h2{font-family:Arial,sans-serif;font-size:20px;margin:0 0 4px;color:#0f4c5c}
+.paper hr{border:0;border-top:1px solid #bbb;margin:14px 0}
+.paper .cut{border-top:2px dashed #555;margin:22px -10px 12px;position:relative}
+.paper .cut::after{content:"✂ desprender y entregar al anfitrión";position:absolute;top:-10px;left:0;background:#fff;padding:0 8px;font-size:11px;color:#555}
+.paper table th{color:#444;border-color:#999}.paper td{border-color:#ddd}.paper tbody tr:nth-child(even){background:#f6f6f6}
+.mail{max-width:680px;margin:0 auto;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--surface)}
+.mail header{padding:12px 16px;background:var(--shade);border-bottom:1px solid var(--line);font-size:14px}
+.mail header div{display:flex;gap:10px}.mail header span{color:var(--muted);min-width:54px}
+.mail .body{padding:18px 20px}
+.mail .body h2{font-size:22px;margin-top:0}
+.tile{border:1px solid var(--line);border-radius:6px;padding:12px 14px;background:var(--surface)}
+.tile b{display:block;font-family:var(--font-display);font-size:32px;color:var(--brand);font-variant-numeric:tabular-nums}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.bar{display:grid;grid-template-columns:130px 1fr 80px;gap:10px;align-items:center;margin:6px 0;font-size:14px}
+.bar i{display:block;height:16px;border-radius:2px;background:var(--brand)}
+.bar .tr{background:var(--shade);border-radius:2px}
+.sev{border-left:5px solid var(--bad)} .sev.w{border-left-color:var(--accent)}
+.sheet{margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 18px}
+.sheet h3{font-size:18px;margin-bottom:8px}
+.sheet dl{display:grid;grid-template-columns:150px 1fr;gap:4px 12px;margin:0;font-size:14px}
+.sheet dt{color:var(--muted)} .sheet dd{margin:0}
+.flow{font-size:13px;color:var(--muted);margin:0 0 12px}
+/* Formularios de entrada */
+.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px;max-width:760px}
+.form .full{grid-column:1/-1}
+.field{display:flex;flex-direction:column;gap:4px}
+.field>label,.field>.lbl{font-weight:600;font-size:15px}
+.req{color:var(--bad);margin-left:2px}
+.help{font-size:13px;color:var(--muted)}
+.err{font-size:13px;color:var(--bad);font-weight:600;min-height:0}
+.err:empty{display:none}
+input[type=text],input[type=email],input[type=tel],input[type=password],input[type=time],textarea,.form select,.form input[type=number],.form input[type=date]{font:inherit;font-size:16px;padding:10px 10px;min-height:44px;border:1.5px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink);width:100%}
+textarea{min-height:90px;resize:vertical}
+input[readonly]{background:var(--shade);color:var(--muted)}
+.errsum a{text-decoration:none}
+[aria-invalid="true"]{border-color:var(--bad)!important;background:var(--bad-bg)!important}
+.valid{border-color:var(--ok)!important}
+.choices{display:flex;gap:10px;flex-wrap:wrap}
+.choice{display:flex;gap:8px;align-items:center;border:1.5px solid var(--line);border-radius:6px;padding:10px 14px;min-height:44px;cursor:pointer;background:var(--surface)}
+.choice:has(input:checked){border-color:var(--brand);background:var(--shade)}
+.choice input{width:18px;height:18px;accent-color:var(--brand)}
+.counter{font-size:12px;color:var(--muted);text-align:right}
+.errsum{border-left:5px solid var(--bad);background:var(--bad-bg);padding:10px 14px;border-radius:0 4px 4px 0;margin:0 0 14px}
+.errsum ul{margin:6px 0 0;padding-left:18px}.errsum a{color:var(--bad);font-weight:600}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.actions .btn{min-height:44px}
+.badge{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:3px;background:var(--accent);color:var(--accent-ink);margin-left:6px;vertical-align:middle}
+.pw{display:flex;gap:6px}.pw input{flex:1}
+.beds td input,.beds td select{min-height:38px;padding:6px 8px;font-size:15px}
+.review{border:1.5px solid var(--brand);border-radius:6px;padding:14px 16px;margin-top:14px;background:var(--shade)}
+@media (max-width:860px){
+  .layout{grid-template-columns:1fr}
+  nav.index{position:static;display:flex;overflow-x:auto;gap:4px;padding:6px}
+  nav.index h3{display:none} nav.index a{white-space:nowrap}
+  .row{grid-template-columns:48px 1fr}.row .act{grid-column:1/-1}
+  .thumb{width:48px;height:48px}
+  .kv,.sheet dl{grid-template-columns:1fr}
+  .form{grid-template-columns:1fr}
+  .bar{grid-template-columns:90px 1fr 60px}
+  .content{padding:16px 14px}
+}
+@media (prefers-reduced-motion:no-preference){.frame{transition:opacity .15s}}
+</style>
+</head>
+<body>
+<div class="topbar"><b>HospedaRuta</b><span>Prototipo de entradas y salidas del sistema · Taller de Diseño de Sistemas (ISI601)</span><span class="tag">Datos ficticios</span></div>
+<div class="layout">
+  <nav class="index" id="index" aria-label="Índice de salidas"></nav>
+  <main class="stage">
+    <div class="crumb" id="crumb"></div>
+    <div class="frame" id="frame"></div>
+    <section class="sheet" id="ficha" aria-label="Ficha de la salida"></section>
+  </main>
+</div>
+
+<script>
+/* ---------- Datos ficticios (coherentes con el modelo físico de la semana 4) ---------- */
+const clp = n => '$' + Math.round(n).toLocaleString('es-CL');
+const fdate = s => { const d = new Date(s + 'T12:00:00'); return d.toLocaleDateString('es-CL', {day:'2-digit', month:'short', year:'numeric'}).replace('.', ''); };
+const addMonths = (s, m) => { const d = new Date(s + 'T12:00:00'); d.setMonth(d.getMonth() + m); return d.toISOString().slice(0, 10); };
+const nights = () => Math.max(1, Math.round((new Date(S.salida) - new Date(S.ingreso)) / 864e5));
+
+const ALOJ = [
+  {id:1, nombre:'Residencial El Arriero', comuna:'Linares', region:'Maule', anf:'María Soto', desc:'Estacionamiento para camionetas, cocina compartida y lavandería. Check-in desde las 18:00.',
+   rooms:[{n:'Pieza 1', camas:[['Camarote inferior',9000,1],['Camarote superior',9000,1],['Individual 1 plaza',12000,0]]},
+          {n:'Pieza 2', camas:[['Camarote inferior',9000,1],['Camarote superior',9000,1]]},
+          {n:'Pieza 3', camas:[['Plaza y media',14000,1],['Individual 1 plaza',12000,1]]}]},
+  {id:2, nombre:'Hospedaje Los Quillayes', comuna:'Parral', region:'Maule', anf:'Pedro Vidal', desc:'Piezas con baño privado, desayuno incluido y patio techado para vehículos.',
+   rooms:[{n:'Dormitorio Norte', camas:[['Individual 1 plaza',11000,1],['Individual 1 plaza',11000,1],['Individual 1 plaza',11000,0]]},
+          {n:'Dormitorio Sur', camas:[['Plaza y media',13500,1],['Individual 1 plaza',11000,0]]}]},
+  {id:3, nombre:'Cabañas Río Renaico', comuna:'Collipulli', region:'La Araucanía', anf:'Sandra Muñoz', desc:'Cabañas de 4 camas con cocina equipada. Aceptan cuadrillas de hasta 20 personas.',
+   rooms:[{n:'Cabaña 1', camas:[['Camarote inferior',12500,1],['Camarote superior',12500,1],['Camarote inferior',12500,1],['Camarote superior',12500,1]]},
+          {n:'Cabaña 2', camas:[['Camarote inferior',12500,1],['Camarote superior',12500,1],['Camarote inferior',12500,0],['Camarote superior',12500,1]]}]},
+  {id:4, nombre:'Residencial Pino Alto', comuna:'Mulchén', region:'Biobío', anf:'Jorge Riquelme', desc:'Residencial familiar cerca de la ruta. Comidas bajo pedido.',
+   rooms:[{n:'Pieza 1', camas:[['Individual 1 plaza',8500,1],['Individual 1 plaza',8500,1]]},
+          {n:'Pieza 2', camas:[['Individual 1 plaza',8500,1],['Individual 1 plaza',8500,0]]}]}
+];
+const camasLibres = a => a.rooms.reduce((s, r) => s + r.camas.filter(c => c[2]).length, 0);
+const desde = a => Math.min(...a.rooms.flatMap(r => r.camas.map(c => c[1])));
+const PLANES = [
+  {id:1, nombre:'Básico', precio:19990, max:1, extra:['1 alojamiento publicado','Aviso de reservas por correo','Panel de reservas']},
+  {id:2, nombre:'Profesional', precio:39990, max:3, extra:['Hasta 3 alojamientos','Aviso de reservas por correo','Panel de reservas y reportes']},
+  {id:3, nombre:'Flota', precio:89990, max:10, extra:['Hasta 10 alojamientos','Aviso de reservas por correo','Reportes y soporte prioritario']}
+];
+
+const S = {
+  aloj:1, comuna:'', ingreso:'2026-12-07', salida:'2026-12-11',
+  cart:[{aloj:1, key:'1-0-0', room:'Pieza 1', tipo:'Camarote inferior', precio:9000},
+        {aloj:1, key:'1-0-1', room:'Pieza 1', tipo:'Camarote superior', precio:9000},
+        {aloj:1, key:'1-1-0', room:'Pieza 2', tipo:'Camarote inferior', precio:9000}],
+  codigo:'HR-4K7Q-1207', tab:'pantalla', camas:1, f:{}, done:{}, pagadas:{}, e06r:null, e06step:0, e06err:'', e06ok:null, enviando:false,
+  hab:[{n:'Pieza 1', camas:[{t:'Individual 1 plaza', p:''}]}],
+  plan:2, meses:3, terminos:true, pago:'ok', orden:'HR-SUB-004821', tbk:'01ab9c3e5f7d2b84a6c0e91f3d58a7b24c6e0f19a3d7b5c8e2f40a61b9d3c7e5'
+};
+const planSel = () => PLANES.find(p => p.id === S.plan);
+const totalSub = () => planSel().precio * S.meses;
+const totalReserva = () => S.cart.reduce((s, i) => s + i.precio * nights(), 0);
+
+/* ---------- Componentes ---------- */
+const appnav = (on, who, items) => `<div class="appnav"><b>HospedaRuta</b>
+  ${(items || ['Buscar','Mis reservas','Planes','Ayuda']).map(x => `<a href="#" data-act="noop" class="${x === on ? 'on' : ''}">${x}</a>`).join('')}
+  <span class="who">${who}</span></div>`;
+const foot = `<div class="foot"><a href="#" data-act="noop">Ayuda</a><a href="#" data-act="noop">Términos y condiciones</a><a href="#" data-act="noop">Privacidad (Ley N.º 19.628)</a><a href="#" data-act="noop">Contacto: soporte@hospedaruta.cl</a></div>`;
+const house = `<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9H3z"/><path d="M9 20v-6h6v6"/></svg>`;
+const steps = (arr, i) => `<div class="steps">${arr.map((x, k) => `<span class="${k === i ? 'on' : ''}">${k + 1}. ${x}</span>`).join('')}</div>`;
+const mail = (to, subj, body) => `<div class="mail"><header>
+  <div><span>De:</span>HospedaRuta &lt;no-responder@hospedaruta.cl&gt;</div><div><span>Para:</span>${to}</div><div><span>Asunto:</span><b>${subj}</b></div></header>
+  <div class="body">${body}</div></div>`;
+
+/* ---------- Entradas: datos maestros, utilidades y validaciones (controles internos) ---------- */
+const HOY = '2026-11-25'; // fecha del sistema simulada para el prototipo
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const val = (id, d) => (id in S.f ? S.f[id] : (d == null ? '' : d));
+const COMUNAS = {'Maule':['Linares','Parral','Talca','Cauquenes','San Javier'], 'Ñuble':['Chillán','San Carlos'], 'Biobío':['Mulchén','Los Ángeles','Nacimiento'], 'La Araucanía':['Collipulli','Angol','Victoria']};
+const regionDe = c => Object.keys(COMUNAS).find(r => COMUNAS[r].includes(c)) || '';
+const TIPOS_CAMA = ['Individual 1 plaza','Plaza y media','2 plazas','Camarote inferior','Camarote superior'];
+const RUTS = ['76.543.210-3','12.345.678-5']; // archivo maestro de usuarios (ficticio)
+const cleanRut = s => String(s).replace(/[^0-9kK]/g, '').toUpperCase();
+const dvRut = n => { let s = 0, m = 2; for (const d of String(n).split('').reverse()){ s += +d * m; m = m === 7 ? 2 : m + 1; } const r = 11 - s % 11; return r === 11 ? '0' : r === 10 ? 'K' : String(r); };
+const fmtRut = s => { const c = cleanRut(s); if (c.length < 2) return s; return c.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + c.slice(-1); };
+const fmtFono = s => { const d = String(s).replace(/\D/g, '').replace(/^56/, ''); return /^9\d{8}$/.test(d) ? `+56 ${d[0]} ${d.slice(1, 5)} ${d.slice(5)}` : s; };
+const misAlojIds = () => ALOJ.filter(a => a.anf === 'María Soto').map(a => a.id);
+const hostNav = on => appnav(on, 'Anfitrión · María Soto', ['Mis alojamientos','Confirmar estadía','Planes','Ayuda']);
+const RESERVAS = () => [
+  {codigo:S.codigo, aloj:S.cart[0] ? S.cart[0].aloj : 1, estado:'PENDIENTE', total:totalReserva(), ingreso:S.ingreso, salida:S.salida, camas:S.cart.length, contratista:'Constructora Valle Sur'},
+  {codigo:'HR-2M9D-1130', aloj:3, estado:'PENDIENTE', total:150000, ingreso:'2026-11-30', salida:'2026-12-03', camas:4, contratista:'Montajes Sur Ltda.'},
+  {codigo:'HR-9P3X-1115', aloj:1, estado:'PAGADA', total:72000, ingreso:'2026-11-15', salida:'2026-11-19', camas:2, contratista:'Eléctrica Ñuble SpA', fpago:'2026-11-15'}
+].map(r => S.pagadas[r.codigo] ? Object.assign({}, r, {estado:'PAGADA', fpago:S.pagadas[r.codigo]}) : r);
+
+const V = {
+  tipo:(v, el) => el.form.querySelector('input[name=tipo]:checked') ? '' : 'Elija si es contratista o anfitrión.',
+  rut:v => { const c = cleanRut(v); if (!c) return 'Ingrese el RUT.'; if (!/^\d{7,8}[0-9K]$/.test(c)) return 'Formato no válido. Ejemplo: 12.345.678-5'; if (dvRut(c.slice(0, -1)) !== c.slice(-1)) return 'El dígito verificador no corresponde. Revise el RUT.'; if (RUTS.includes(fmtRut(c))) return 'Este RUT ya tiene una cuenta. Inicie sesión o recupere su contraseña.'; return ''; },
+  texto3:v => !v.trim() ? 'Este dato es obligatorio.' : v.trim().length < 3 ? 'Debe tener al menos 3 caracteres.' : '',
+  correo:v => !v.trim() ? 'Ingrese un correo electrónico.' : /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v.trim()) ? '' : 'Correo no válido. Ejemplo: nombre@empresa.cl',
+  fono:v => { const d = v.replace(/\D/g, '').replace(/^56/, ''); return !d ? 'Ingrese un teléfono celular.' : /^9\d{8}$/.test(d) ? '' : 'Debe ser un celular de 9 dígitos que empiece con 9. Ejemplo: +56 9 1234 5678'; },
+  pass:v => v.length < 8 ? 'Use al menos 8 caracteres.' : (/[A-Za-z]/.test(v) && /\d/.test(v)) ? '' : 'Combine letras y números.',
+  acepto:(v, el) => el.checked ? '' : 'Debe aceptar los términos y la política de privacidad para continuar.',
+  direccion:v => v.trim().length < 5 ? 'Ingrese la dirección (calle y número, o kilómetro de la ruta).' : '',
+  sel:v => v ? '' : 'Seleccione una opción.',
+  max300:v => v.length > 300 ? 'Máximo 300 caracteres.' : '',
+  max200:v => v.length > 200 ? 'Máximo 200 caracteres.' : '',
+  hab:v => v.trim() ? '' : 'Ingrese el nombre de la habitación.',
+  precio:v => { if (v === '') return 'Ingrese el precio.'; const n = +v; if (!Number.isInteger(n)) return 'Sin puntos ni decimales.'; if (n < 5000 || n > 60000) return 'Entre $5.000 y $60.000.'; return ''; },
+  ingreso:v => !v ? 'Elija la fecha de ingreso.' : v < HOY ? 'No puede ser anterior a hoy (' + fdate(HOY) + ').' : '',
+  salida:(v, el) => { const i = el.form.querySelector('#b-ingreso').value; if (!v) return 'Elija la fecha de salida.'; if (i && v <= i) return 'Debe ser posterior a la fecha de ingreso.'; if (i && (new Date(v) - new Date(i)) / 864e5 > 30) return 'La estadía máxima es de 30 noches.'; return ''; },
+  camas:v => { const n = +v; return (v === '' || !Number.isInteger(n) || n < 1 || n > 20) ? 'Ingrese un número entero entre 1 y 20.' : ''; },
+  trab:v => { const n = +v, m = S.cart.length; return (v === '' || !Number.isInteger(n) || n < 1) ? 'Ingrese la cantidad de trabajadores.' : n > m ? `No puede superar las camas del carro (${m}).` : ''; },
+  codigo:v => !v ? 'Ingrese el código de reserva.' : /^HR-[A-Z0-9]{4}-\d{4}$/.test(v) ? '' : 'Formato no válido. Ejemplo: HR-4K7Q-1207',
+  monto:v => { const r = S.e06r, n = +v; if (v === '') return 'Ingrese el monto recibido.'; if (!Number.isInteger(n) || n <= 0) return 'Monto en pesos, sin puntos ni decimales.'; if (r && n !== r.total) return `Debe coincidir con el total de la reserva (${clp(r.total)}).`; return ''; },
+  medio:(v, el) => el.form.querySelector('input[name=medio]:checked') ? '' : 'Elija el medio de pago.',
+  oper:(v, el) => !el.form.querySelector('input[name=medio][value=Transferencia]:checked') ? '' : /^\d{6,12}$/.test(v) ? '' : 'Ingrese el número de operación (6 a 12 dígitos).',
+  fpago:v => { const r = S.e06r; if (!v) return 'Ingrese la fecha de pago.'; if (r && (v < r.ingreso || v > r.salida)) return `Debe estar entre el ingreso (${fdate(r.ingreso)}) y la salida (${fdate(r.salida)}).`; return ''; }
+};
+const MASK = {rut:fmtRut, fono:fmtFono, codigo:v => v.toUpperCase().trim()};
+function labelOf(el){
+  if (el.type === 'radio') return el.closest('.field').querySelector('.lbl').textContent.replace('*', '').trim();
+  const l = document.querySelector(`label[for="${el.id}"]`);
+  return l ? l.textContent.replace('*', '').trim() : (el.getAttribute('aria-label') || el.id);
+}
+function vEl(el){
+  const fn = V[el.dataset.v]; if (!fn) return '';
+  const msg = fn(el.type === 'checkbox' ? '' : el.value, el);
+  const key = el.type === 'radio' ? el.name : el.id;
+  const e = document.getElementById(key + '-e'); if (e) e.textContent = msg;
+  if (el.type === 'radio') el.form.querySelectorAll(`input[name="${el.name}"]`).forEach(r => r.setAttribute('aria-invalid', msg ? 'true' : 'false'));
+  else { el.setAttribute('aria-invalid', msg ? 'true' : 'false'); el.classList.toggle('valid', !msg && el.value !== '' && el.type !== 'checkbox'); }
+  return msg;
+}
+function vForm(form, extra){
+  const seen = new Set(), errs = [];
+  form.querySelectorAll('[data-v]').forEach(el => {
+    if (el.closest('[hidden]')) return;
+    const key = el.type === 'radio' ? el.name : el.id; if (seen.has(key)) return; seen.add(key);
+    const m = vEl(el); if (m) errs.push([el.id, labelOf(el) + ': ' + m]);
+  });
+  (extra || []).forEach(x => errs.push(x));
+  const sum = form.querySelector('.errsum');
+  if (errs.length){ sum.hidden = false; sum.innerHTML = `<b>Revise ${errs.length} dato${errs.length > 1 ? 's' : ''} antes de continuar:</b><ul>${errs.map(x => `<li>${x[0] ? `<a href="#" data-act="focus" data-id="${x[0]}">${esc(x[1])}</a>` : esc(x[1])}</li>`).join('')}</ul>`; sum.focus(); }
+  else { sum.hidden = true; sum.innerHTML = ''; }
+  return errs.length === 0;
+}
+/* Componentes de formulario (controles GUI) */
+const fld = (id, label, ctrl, o) => { o = o || {}; return `<div class="field ${o.full ? 'full' : ''}" ${o.hidden ? 'hidden' : ''} id="${id}-w"><label for="${id}">${label}${o.req ? '<span class="req" aria-hidden="true">*</span>' : ''}</label>${ctrl}${o.count ? `<div class="counter" id="${id}-c">${val(id, o.def).length} / ${o.count}</div>` : ''}${o.help ? `<div class="help" id="${id}-h">${o.help}</div>` : ''}<div class="err" id="${id}-e" aria-live="polite"></div></div>`; };
+const inp = (id, v, type, attrs, def) => `<input type="${type}" id="${id}" name="${id}" data-v="${v}" value="${esc(val(id, def))}" aria-describedby="${id}-h ${id}-e" ${attrs || ''}>`;
+const sel = (id, v, opts, def, attrs) => `<select id="${id}" name="${id}" data-v="${v}" aria-describedby="${id}-h ${id}-e" ${attrs || ''}>${opts}</select>`;
+const opt = (value, text, cur) => `<option value="${esc(value)}" ${value === cur ? 'selected' : ''}>${esc(text == null ? value : text)}</option>`;
+const radios = (name, label, list, v, help) => `<div class="field full"><span class="lbl" id="${name}-l">${label}<span class="req" aria-hidden="true">*</span></span>
+  <div class="choices" role="radiogroup" aria-labelledby="${name}-l">${list.map((x, k) => `<label class="choice"><input type="radio" name="${name}" id="${name}-${k}" value="${esc(x[0])}" data-v="${v}" ${val(name) === x[0] ? 'checked' : ''}> ${x[1]}</label>`).join('')}</div>
+  ${help ? `<div class="help">${help}</div>` : ''}<div class="err" id="${name}-e" aria-live="polite"></div></div>`;
+const errBox = '<div class="errsum" hidden tabindex="-1" role="alert"></div>';
+const reqNote = '<p class="help" style="margin:0 0 12px">Los datos con <span class="req">*</span> son obligatorios.</p>';
+
+/* ---------- Pantallas ---------- */
+const SCREENS = [
+{id:'e01', grupo:'Entradas del sistema', nombre:'Registro de usuario', render(){
+  const top = appnav('', 'Visitante (sin sesión)');
+  if (S.done.e01) return top + `<div class="content"><h1>Cuenta creada</h1>
+    <div class="note okk"><b>Registro recibido (simulación).</b> Se envió un correo de verificación a ${esc(S.done.e01.correo)}.</div>
+    <dl class="kv"><dt>RUT</dt><dd>${esc(S.done.e01.rut)}</dd><dt>Nombre</dt><dd>${esc(S.done.e01.nombre)}</dd><dt>Tipo de cuenta</dt><dd>${esc(S.done.e01.tipo)}</dd><dt>Fecha de registro</dt><dd>${fdate(HOY)} (dato automático)</dd></dl>
+    <div class="actions"><button class="btn" data-act="go" data-to="${S.done.e01.tipo === 'Anfitrión' ? 'e02' : 'e03'}">${S.done.e01.tipo === 'Anfitrión' ? 'Publicar mi alojamiento' : 'Buscar alojamiento'}</button><button class="btn alt" data-act="reset-e01">Registrar otra cuenta</button></div></div>` + foot;
+  return top + `<div class="content">
+  <h1>Crear cuenta</h1><p class="sub">Regístrese para reservar camas o publicar su alojamiento.</p>${reqNote}
+  <form id="f-e01" novalidate>${errBox}<div class="form">
+   ${radios('tipo', 'Tipo de cuenta', [['Contratista','Contratista: busco alojamiento para mi cuadrilla'],['Anfitrión','Anfitrión: publico mi residencial o cabañas']], 'tipo')}
+   ${fld('rut', 'RUT de la persona o empresa', inp('rut', 'rut', 'text', 'maxlength="12" autocomplete="off" placeholder="76.543.210-3"'), {req:1, help:'Con dígito verificador. Los puntos y el guion se agregan solos.'})}
+   ${fld('nombre', 'Nombre o razón social', inp('nombre', 'texto3', 'text', 'maxlength="100" autocomplete="organization"'), {req:1, help:'Ejemplo: Constructora Valle Sur'})}
+   ${fld('correo', 'Correo electrónico', inp('correo', 'correo', 'email', 'maxlength="100" autocomplete="email" inputmode="email"'), {req:1, help:'Aquí llegarán los avisos y comprobantes.'})}
+   ${fld('fono', 'Teléfono celular', inp('fono', 'fono', 'tel', 'maxlength="16" autocomplete="tel" inputmode="tel" placeholder="+56 9 1234 5678"'), {req:1, help:'El anfitrión o la cuadrilla lo usarán para coordinar la llegada.'})}
+   ${fld('pass', 'Contraseña', `<div class="pw">${inp('pass', 'pass', 'password', 'maxlength="64" autocomplete="new-password"')}<button type="button" class="btn alt sm" data-act="togglepw" aria-controls="pass">Mostrar</button></div>`, {req:1, full:1, help:'Al menos 8 caracteres, con letras y números.'})}
+   <div class="field full"><label class="choice" style="border:0;padding:0"><input type="checkbox" id="acepto" data-v="acepto" aria-label="Aceptación de términos y privacidad" ${val('acepto') ? 'checked' : ''}> Acepto los términos y condiciones y la política de privacidad (Ley N.º 19.628)<span class="req" aria-hidden="true">*</span></label><div class="err" id="acepto-e" aria-live="polite"></div></div>
+  </div>
+  <div class="actions"><button type="button" class="btn go" data-act="submit-e01">Crear cuenta</button><button type="button" class="btn alt" data-act="clear" data-form="e01">Limpiar</button></div></form>
+  <p class="help" style="margin-top:14px">Para probar los controles: el RUT 12.345.678-5 ya existe en el sistema y el 12.345.678-9 tiene un dígito verificador incorrecto.</p></div>` + foot;
+}, fichaE:[
+  ['Tipo de entrada','En línea, formulario web (proceso 1 Registrar usuario; almacén D1 Usuarios)'],
+  ['Usuario','Contratista o anfitrión nuevo, sin sesión iniciada'],
+  ['Método de entrada','Teclado físico o virtual (pantalla táctil) y botones de opción'],
+  ['Documento de origen','No requiere: el usuario conoce sus datos (RUT, correo, teléfono)'],
+  ['Datos que se modifican','Nombre o razón social, correo, teléfono, contraseña'],
+  ['Datos de diferenciación','RUT con dígito verificador (identificador único) y tipo de cuenta (rol)'],
+  ['Datos automáticos','Fecha de registro, estado de la cuenta e identificador interno'],
+  ['Procesamiento','Valida los datos, compara el RUT con D1, guarda la contraseña cifrada, crea el usuario y envía un correo de verificación'],
+  ['Controles internos','Campos obligatorios; formato y dígito verificador del RUT (módulo 11); formato de correo y celular; largo mínimo de contraseña; RUT duplicado contra el archivo maestro; aceptación de términos'],
+  ['Controles GUI','Botones de opción, campos de texto con ejemplo, botón mostrar u ocultar contraseña, casilla de verificación, mensaje de error junto al campo y resumen de errores con enlaces']]},
+
+{id:'e02', grupo:'Entradas del sistema', nombre:'Publicar alojamiento', render(){
+  const p = planSel(), used = misAlojIds().length;
+  const nCamas = S.hab.reduce((s, h) => s + h.camas.length, 0);
+  const com = val('a-comuna');
+  return hostNav('Mis alojamientos') + `<div class="content">
+  <h1>Publicar alojamiento</h1><p class="sub">Registre su recinto, sus habitaciones y el precio de cada cama.</p>
+  ${S.done.e02 ? `<div class="note okk"><b>Alojamiento publicado.</b> «${esc(S.done.e02)}» ya aparece en la búsqueda de los contratistas. <a href="#s01" data-act="go" data-to="s01">Ver resultados (S-01)</a></div>` : ''}
+  <div class="note info">Plan ${p.nombre}: <b>${used} de ${p.max}</b> alojamientos publicados. El límite viene del campo max_alojamientos del plan vigente.</div>${reqNote}
+  <form id="f-e02" novalidate>${errBox}
+  <h2>1. Datos del alojamiento</h2><div class="form">
+   ${fld('a-nombre', 'Nombre del alojamiento', inp('a-nombre', 'texto3', 'text', 'maxlength="80"'), {req:1, help:'Como lo conocen sus huéspedes. Ejemplo: Residencial El Arriero'})}
+   ${fld('a-comuna', 'Comuna', sel('a-comuna', 'sel', opt('', 'Seleccione…', com) + Object.keys(COMUNAS).map(r => `<optgroup label="${r}">${COMUNAS[r].map(c => opt(c, c, com)).join('')}</optgroup>`).join('')), {req:1})}
+   ${fld('a-region', 'Región', `<input type="text" id="a-region" value="${esc(regionDe(com))}" readonly aria-describedby="a-region-h" placeholder="Se completa sola">`, {help:'Dato automático: se obtiene de la comuna.'})}
+   ${fld('a-checkin', 'Check-in desde', sel('a-checkin', 'sel', ['14:00','15:00','16:00','17:00','18:00','19:00','20:00'].map(h => opt(h, h, val('a-checkin', '18:00'))).join('')), {req:1})}
+   ${fld('a-dir', 'Dirección', inp('a-dir', 'direccion', 'text', 'maxlength="120" autocomplete="street-address"'), {req:1, full:1, help:'Calle y número, o kilómetro de la ruta. Ejemplo: Ruta 5 Sur km 305'})}
+   ${fld('a-desc', 'Descripción', `<textarea id="a-desc" data-v="max300" data-count="300" maxlength="300" aria-describedby="a-desc-h a-desc-e">${esc(val('a-desc'))}</textarea>`, {full:1, count:300, help:'Opcional. Servicios, horarios y cómo llegar.'})}
+   <div class="field full"><span class="lbl">Servicios</span><div class="choices">${['Estacionamiento para camionetas','Cocina compartida','Lavandería','Desayuno','Baño privado'].map((x, k) => `<label class="choice"><input type="checkbox" id="sv-${k}" ${val('sv-' + k) ? 'checked' : ''}> ${x}</label>`).join('')}</div></div>
+  </div>
+  <h2>2. Habitaciones y camas</h2><p class="help">Agregue cada cama por separado: la cama es lo que reservan las cuadrillas. Precio por noche en pesos, sin puntos.</p>
+  ${S.hab.map((h, hi) => `<div class="room"><header style="align-items:flex-start;gap:10px"><span style="flex:1;font-weight:400"><label for="h${hi}" class="help">Habitación ${hi + 1}</label><input type="text" id="h${hi}" data-v="hab" data-hab="${hi}" value="${esc(h.n)}" maxlength="40" aria-describedby="h${hi}-e"><span class="err" id="h${hi}-e" style="display:block"></span></span>${S.hab.length > 1 ? `<button type="button" class="btn alt sm" data-act="rmhab" data-h="${hi}" style="margin-top:22px">Quitar habitación</button>` : ''}</header>
+   <div class="scroll"><table class="beds"><thead><tr><th>Tipo de cama</th><th>Precio por noche</th><th></th></tr></thead><tbody>
+   ${h.camas.map((c, ci) => `<tr><td><select id="c${hi}-${ci}-t" data-hab="${hi}" data-cama="${ci}" data-k="t" aria-label="Tipo de la cama ${ci + 1}, habitación ${hi + 1}">${TIPOS_CAMA.map(t => opt(t, t, c.t)).join('')}</select></td>
+    <td><input type="number" id="c${hi}-${ci}-p" data-v="precio" data-hab="${hi}" data-cama="${ci}" data-k="p" value="${esc(c.p)}" min="5000" max="60000" step="500" inputmode="numeric" placeholder="9000" aria-label="Precio por noche de la cama ${ci + 1}, habitación ${hi + 1}" aria-describedby="c${hi}-${ci}-p-e"><div class="err" id="c${hi}-${ci}-p-e"></div></td>
+    <td class="num">${h.camas.length > 1 ? `<button type="button" class="btn alt sm" data-act="rmcamaH" data-h="${hi}" data-c="${ci}">Quitar</button>` : ''}</td></tr>`).join('')}
+   </tbody></table></div><div style="padding:8px 12px"><button type="button" class="btn alt sm" data-act="addcamaH" data-h="${hi}">+ Agregar cama</button></div></div>`).join('')}
+  <p><button type="button" class="btn alt" data-act="addhab">+ Agregar habitación</button> <span class="meta">Total: ${nCamas} cama${nCamas === 1 ? '' : 's'} en ${S.hab.length} habitaci${S.hab.length === 1 ? 'ón' : 'ones'}</span></p>
+  <div class="actions"><button type="button" class="btn go" data-act="submit-e02">Publicar alojamiento</button><button type="button" class="btn alt" data-act="go" data-to="s05">Ver planes</button></div></form></div>` + foot;
+}, fichaE:[
+  ['Tipo de entrada','En línea, formulario web (proceso 2 Publicar alojamiento; almacén D2 Alojamientos y Camas)'],
+  ['Usuario','Anfitrión con suscripción ACTIVA'],
+  ['Método de entrada','Teclado y selección (listas desplegables, casillas y cuadros numéricos)'],
+  ['Documento de origen','No requiere: el anfitrión conoce su recinto'],
+  ['Datos que se modifican','Nombre, dirección, descripción, hora de check-in, servicios, habitaciones, tipo y precio de cada cama'],
+  ['Datos de diferenciación','Comuna (tabla Comuna) e identificadores de alojamiento, habitación y cama asignados por el sistema'],
+  ['Datos automáticos','Región (derivada de la comuna), anfitrión (de la sesión), fecha de publicación y activo = 1'],
+  ['Procesamiento','Verifica el límite max_alojamientos del plan; inserta Alojamiento, Habitación y Cama en una transacción; el alojamiento aparece en S-01'],
+  ['Controles internos','Perfil anfitrión; campos obligatorios; largo de textos; precio entero entre $5.000 y $60.000; al menos una cama; límite del plan'],
+  ['Controles GUI','Lista desplegable agrupada por región, campo de solo lectura, área de texto con contador, casillas, tabla editable con botones agregar y quitar, cuadros numéricos']]},
+
+{id:'e03', grupo:'Entradas del sistema', nombre:'Búsqueda de alojamiento', render(){
+  const coms = [...new Set(ALOJ.map(a => a.comuna))].sort();
+  const i = val('b-ingreso', S.ingreso), o = val('b-salida', S.salida);
+  const n = (i && o && o > i) ? Math.round((new Date(o) - new Date(i)) / 864e5) : 0;
+  return appnav('Buscar', 'Contratista · Constructora Valle Sur') + `<div class="content">
+  <h1>Buscar alojamiento</h1><p class="sub">Indique dónde y cuándo necesita alojar a su cuadrilla.</p>${reqNote}
+  <form id="f-e03" novalidate>${errBox}<div class="form">
+   ${fld('b-comuna', 'Comuna', sel('b-comuna', '', opt('', 'Todas las comunas', val('b-comuna', S.comuna)) + coms.map(c => opt(c, c + ' (' + regionDe(c) + ')', val('b-comuna', S.comuna))).join('')), {help:'Solo aparecen comunas con alojamientos publicados.'})}
+   ${fld('b-camas', 'Camas necesarias', inp('b-camas', 'camas', 'number', 'min="1" max="20" step="1" inputmode="numeric"', S.camas), {req:1, help:'Una por trabajador. Máximo 20.'})}
+   ${fld('b-ingreso', 'Fecha de ingreso', inp('b-ingreso', 'ingreso', 'date', `min="${HOY}"`, S.ingreso), {req:1})}
+   ${fld('b-salida', 'Fecha de salida', inp('b-salida', 'salida', 'date', `min="${HOY}"`, S.salida), {req:1})}
+   <p class="meta full" id="b-noches" aria-live="polite">${n ? `Estadía de ${n} noche${n === 1 ? '' : 's'} (cálculo automático).` : ''}</p>
+  </div><div class="actions"><button type="button" class="btn go" data-act="submit-e03">Buscar</button></div></form></div>` + foot;
+}, fichaE:[
+  ['Tipo de entrada','En línea, filtros de consulta (proceso 3 Buscar alojamiento)'],
+  ['Usuario','Contratista con sesión iniciada'],
+  ['Método de entrada','Selección (lista desplegable y calendario) y teclado numérico'],
+  ['Documento de origen','No requiere'],
+  ['Datos que se modifican','Fechas de ingreso y salida, cantidad de camas'],
+  ['Datos de diferenciación','Comuna (id_comuna)'],
+  ['Datos automáticos','Noches calculadas, fecha mínima igual a hoy, región mostrada junto a la comuna'],
+  ['Procesamiento','Consulta D2 y D3 para calcular las camas libres en el rango de fechas y presenta la salida S-01'],
+  ['Controles internos','Ingreso no anterior a hoy; salida posterior al ingreso; máximo 30 noches; camas entero entre 1 y 20'],
+  ['Controles GUI','Lista desplegable, selector de fecha, cuadro numérico, cálculo en vivo de noches y un solo botón principal']]},
+
+{id:'e04', grupo:'Entradas del sistema', nombre:'Datos de la reserva', render(){
+  const top = appnav('Buscar', 'Contratista · Constructora Valle Sur');
+  if (!S.cart.length) return top + `<div class="content"><h1>Datos de la reserva</h1><div class="note">El carro está vacío. <a href="#e03" data-act="go" data-to="e03">Buscar alojamiento</a></div></div>` + foot;
+  const a = ALOJ.find(x => x.id === S.cart[0].aloj), n = nights();
+  return top + `<div class="content">${steps(['Elegir camas','Carro de reserva','Datos de la reserva','Código de reserva'], 2)}
+  <h1>Datos de la reserva</h1><p class="sub">${a.nombre}, ${a.comuna} · ${fdate(S.ingreso)} a ${fdate(S.salida)} (${n} noches) · ${S.cart.length} cama${S.cart.length === 1 ? '' : 's'} · ${clp(totalReserva())}</p>
+  <div class="note info">Las camas, fechas y precios ya vienen del carro: no se vuelven a escribir. Solo complete los datos de contacto de la cuadrilla.</div>${reqNote}
+  <form id="f-e04" novalidate>${errBox}<div class="form">
+   ${fld('r-resp', 'Responsable de la cuadrilla', inp('r-resp', 'texto3', 'text', 'maxlength="80" autocomplete="name"', 'Luis Contreras'), {req:1, help:'Prellenado con el usuario de la sesión; puede cambiarlo.'})}
+   ${fld('r-fono', 'Celular del responsable', inp('r-fono', 'fono', 'tel', 'maxlength="16" inputmode="tel"', '+56 9 5555 0000'), {req:1})}
+   ${fld('r-trab', 'Trabajadores que llegan', inp('r-trab', 'trab', 'number', `min="1" max="${S.cart.length}" step="1" inputmode="numeric"`, String(S.cart.length)), {req:1, help:`Igual o menor que las camas reservadas (${S.cart.length}).`})}
+   ${fld('r-llegada', 'Hora estimada de llegada', sel('r-llegada', 'sel', opt('', 'Seleccione…', val('r-llegada')) + ['18:00','19:00','20:00','21:00','22:00'].map(h => opt(h, h, val('r-llegada'))).join('')), {req:1, help:'El recinto recibe desde las 18:00; la reserva se guarda hasta las 20:00 si no avisa.'})}
+   ${fld('r-obs', 'Observaciones para el anfitrión', `<textarea id="r-obs" data-v="max200" data-count="200" maxlength="200" aria-describedby="r-obs-h r-obs-e">${esc(val('r-obs'))}</textarea>`, {full:1, count:200, help:'Opcional. Ejemplo: llegamos en dos camionetas.'})}
+  </div><div class="actions"><button type="button" class="btn alt" data-act="go" data-to="s03">Volver al carro</button><button type="button" class="btn go" id="btn-e04" data-act="submit-e04">Confirmar reserva</button></div></form></div>` + foot;
+}, fichaE:[
+  ['Tipo de entrada','En línea, formulario web (procesos 4.A Verificar disponibilidad y 4.B Generar reserva; almacén D3 Reservas)'],
+  ['Usuario','Contratista con sesión iniciada'],
+  ['Método de entrada','Teclado; las camas, fechas y precios llegan desde el carro S-03 sin volver a digitarlos'],
+  ['Documento de origen','El carro de reserva S-03 (salida con regreso que se convierte en entrada)'],
+  ['Datos que se modifican','Responsable, celular, trabajadores, hora de llegada, observaciones'],
+  ['Datos de diferenciación','Contratista (de la sesión), id_cama de cada línea y codigo_reserva generado'],
+  ['Datos automáticos','fecha_reserva, estado PENDIENTE, precio_noche_pactado copiado desde Cama y codigo_reserva único'],
+  ['Procesamiento','Vuelve a verificar disponibilidad y bloquea las camas en una transacción (UPDLOCK, HOLDLOCK); inserta Reserva y DetalleReserva; genera S-04 y el correo S-09'],
+  ['Controles internos','Obligatorios; celular válido; trabajadores no mayor que las camas; largo de observaciones; bloqueo del doble envío; revalidación de disponibilidad al confirmar'],
+  ['Controles GUI','Indicador de pasos, campos prellenados editables, lista de horas, cuadro numérico, contador de caracteres y botón que se desactiva mientras procesa']]},
+
+{id:'e05', grupo:'Entradas del sistema', nombre:'Contratación de plan (pantalla S-06)', render(){ return SCREENS.find(x => x.id === 's06').render(); },
+ fichaE:[
+  ['Tipo de entrada','En línea, comercio electrónico (proceso 5 Gestionar suscripción; almacén D4 Suscripciones)'],
+  ['Usuario','Anfitrión con sesión iniciada'],
+  ['Método de entrada','Selección con el dedo o el ratón (tarjetas de plan, lista de meses, casilla); la tarjeta se digita solo en el sitio de Transbank'],
+  ['Documento de origen','No requiere'],
+  ['Datos que se modifican','Plan y cantidad de meses'],
+  ['Datos de diferenciación','id_plan, anfitrión (de la sesión) y orden de compra (buy_order) única por intento'],
+  ['Datos automáticos','Precio desde la tabla Plan, neto, IVA, total y fechas de vigencia'],
+  ['Procesamiento','Crea la transacción en Webpay Plus, redirige, confirma con commit y registra la suscripción ACTIVA solo si response_code es 0'],
+  ['Controles internos','Monto recalculado en el servidor; aceptación de términos obligatoria; orden de compra única; los datos de la tarjeta nunca entran a HospedaRuta'],
+  ['Controles GUI','Tarjetas con botón, lista desplegable de meses, casilla de verificación que habilita el botón de pago e indicador de pasos']]},
+
+{id:'e06', grupo:'Entradas del sistema', nombre:'Confirmar estadía y pago', render(){
+  const r = S.e06r, ok = S.e06ok;
+  const review = S.e06step === 2 && r ? `<div class="review" id="e06-review"><h2 style="margin-top:0">Revise antes de confirmar</h2><dl class="kv">
+    <dt>Código</dt><dd>${r.codigo}</dd><dt>Contratista</dt><dd>${esc(r.contratista)}</dd><dt>Monto recibido</dt><dd>${clp(+val('p-monto'))}</dd><dt>Medio de pago</dt><dd>${esc(val('medio'))}${val('medio') === 'Transferencia' ? ' · operación ' + esc(val('p-oper')) : ''}</dd><dt>Fecha de pago</dt><dd>${fdate(val('p-fecha', r.ingreso))}</dd><dt>Nuevo estado</dt><dd><span class="pill ok">PAGADA</span></dd></dl>
+    <div class="actions"><button type="button" class="btn alt" data-act="e06corregir">Corregir</button><button type="button" class="btn alt" data-act="print">${S.e06print ? 'Ocultar hoja de revisión' : 'Hoja para imprimir y revisar'}</button><button type="button" class="btn go" data-act="e06confirmar">Confirmar pago</button></div>
+    ${S.e06print ? `<div class="paper" style="margin-top:14px"><h2>Registro de pago para revisión · HospedaRuta</h2><div>Anfitrión: María Soto · Emitido ${fdate(val('p-fecha', r.ingreso))}</div><hr><table><tbody><tr><td><b>Código de reserva</b></td><td>${r.codigo}</td></tr><tr><td><b>Contratista</b></td><td>${esc(r.contratista)}</td></tr><tr><td><b>Total de la reserva</b></td><td>${clp(r.total)}</td></tr><tr><td><b>Monto recibido</b></td><td>${clp(+val('p-monto'))}</td></tr><tr><td><b>Medio de pago</b></td><td>${esc(val('medio'))}${val('medio') === 'Transferencia' ? ' · operación ' + esc(val('p-oper')) : ''}</td></tr><tr><td><b>Fecha de pago</b></td><td>${fdate(val('p-fecha', r.ingreso))}</td></tr></tbody></table><p style="font-size:12px;color:#444">Revise los datos contra el comprobante desprendible antes de confirmar. Firma: ________________</p></div>` : ''}</div>` : '';
+  return hostNav('Confirmar estadía') + `<div class="content">${steps(['Buscar la reserva','Registrar el pago','Revisar y confirmar'], S.e06step)}
+  <h1>Confirmar estadía y pago</h1><p class="sub">Registre el pago que recibió en su recinto con el código del comprobante de la cuadrilla.</p>
+  ${ok ? `<div class="note okk"><b>Pago registrado.</b> La reserva ${ok.codigo} quedó en estado PAGADA (${clp(ok.monto)}, ${esc(ok.medio)}, ${fdate(ok.fecha)}). Se envió el comprobante de estadía al contratista: <a href="#s10" data-act="go" data-to="s10">ver correo S-10</a>.</div>` : ''}
+  <form id="f-e06" novalidate>${errBox}<div class="form">
+   ${fld('p-codigo', 'Código de reserva', `<div class="pw" style="flex-wrap:wrap">${inp('p-codigo', 'codigo', 'text', `maxlength="12" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="HR-4K7Q-1207" style="font-family:ui-monospace,Consolas,monospace;letter-spacing:.08em;min-width:190px" ${r ? 'readonly' : ''}`)}${r ? '<button type="button" class="btn alt sm" data-act="e06otro">Cambiar código</button>' : '<button type="button" class="btn sm" data-act="e06buscar">Buscar reserva</button><button type="button" class="btn alt sm" data-act="e06qr">Escanear QR (simulado)</button>'}</div>`, {req:1, full:1, help:'Está en la parte desprendible del comprobante (S-04). Formato HR-XXXX-DDMM.'})}
+  </div>
+  ${r ? `<div class="review" style="margin-bottom:14px"><dl class="kv"><dt>Contratista</dt><dd>${esc(r.contratista)}</dd><dt>Alojamiento</dt><dd>${ALOJ.find(x => x.id === r.aloj).nombre}</dd><dt>Estadía</dt><dd>${fdate(r.ingreso)} a ${fdate(r.salida)}</dd><dt>Camas</dt><dd>${r.camas}</dd><dt>Total a cobrar</dt><dd><b>${clp(r.total)}</b></dd><dt>Estado actual</dt><dd><span class="pill warn">${r.estado}</span></dd></dl><p class="help" style="margin:8px 0 0">Datos traídos de la reserva registrada (archivo maestro D3).</p></div>
+  <div class="form" ${S.e06step === 2 ? 'hidden' : ''}>
+   ${fld('p-monto', 'Monto recibido (CLP)', inp('p-monto', 'monto', 'number', 'min="1" step="1" inputmode="numeric"'), {req:1, help:'Sin puntos. Debe coincidir con el total de la reserva.'})}
+   ${fld('p-fecha', 'Fecha de pago', inp('p-fecha', 'fpago', 'date', `min="${r.ingreso}" max="${r.salida}"`, r.ingreso), {req:1})}
+   ${radios('medio', 'Medio de pago', [['Efectivo','Efectivo'],['Transferencia','Transferencia']], 'medio')}
+   ${fld('p-oper', 'N.º de operación de la transferencia', inp('p-oper', 'oper', 'text', 'maxlength="12" inputmode="numeric"'), {req:1, hidden:val('medio') !== 'Transferencia', help:'Aparece en el comprobante del banco.'})}
+  </div>${S.e06step === 2 ? '' : '<div class="actions"><button type="button" class="btn go" data-act="e06revisar">Revisar datos</button></div>'}` : ''}
+  ${review}</form>
+  ${r ? '' : '<p class="help" style="margin-top:14px">Para probar los controles: HR-4K7Q-1207 está pendiente, HR-9P3X-1115 ya fue pagada, HR-2M9D-1130 es de otro anfitrión y HR-0000-0101 no existe.</p>'}</div>` + foot;
+}, fichaE:[
+  ['Tipo de entrada','En línea, formulario web (proceso 6 Confirmar estadía y pago; almacén D3 Reservas)'],
+  ['Usuario','Anfitrión del alojamiento reservado'],
+  ['Método de entrada','Teclado o lectura del código QR del comprobante con la cámara del teléfono (simulada en el prototipo)'],
+  ['Documento de origen','Parte desprendible del comprobante de reserva S-04 (salida con regreso)'],
+  ['Datos que se modifican','Monto recibido, medio de pago, número de operación y fecha de pago'],
+  ['Datos de diferenciación','codigo_reserva'],
+  ['Datos automáticos','Contratista, fechas, camas y total traídos desde D3; anfitrión de la sesión; fecha y hora del registro'],
+  ['Procesamiento','Compara el código con D3, actualiza la reserva a PAGADA con fecha_pago y medio_pago, y envía el correo S-10'],
+  ['Controles internos','Formato del código; existencia en el archivo maestro; pertenencia al anfitrión; no se procesa dos veces; monto igual al total; operación obligatoria si es transferencia; fecha dentro de la estadía; revisión e impresión antes de confirmar'],
+  ['Controles GUI','Campo con máscara en mayúsculas, botones de búsqueda y escaneo, botones de opción, campo condicional y panel de revisión con confirmación']]},
+
+{id:'s01', grupo:'Contratista', nombre:'Resultados de búsqueda', render(){
+  const list = ALOJ.filter(a => (!S.comuna || a.comuna === S.comuna) && camasLibres(a) >= (S.camas || 1));
+  return appnav('Buscar', 'Contratista · Constructora Valle Sur') + `<div class="content">
+  <p class="flow"><a href="#e03" data-act="go" data-to="e03">← Cambiar búsqueda (E-03)</a></p><h1>Alojamientos disponibles</h1><p class="sub">${list.length} alojamientos con al menos ${S.camas || 1} cama${(S.camas || 1) > 1 ? 's' : ''} libre${(S.camas || 1) > 1 ? 's' : ''} para ${fdate(S.ingreso)} a ${fdate(S.salida)} (${nights()} noches)</p>
+  <div class="filters">
+    <label class="f">Comuna<select id="comuna"><option value="">Todas</option>${[...new Set(ALOJ.map(a => a.comuna))].map(c => `<option ${S.comuna === c ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+    <label class="f">Ingreso<input type="date" id="ingreso" value="${S.ingreso}"></label>
+    <label class="f">Salida<input type="date" id="salida" value="${S.salida}"></label>
+  </div>
+  <div class="list">${list.map(a => `<div class="row"><div class="thumb">${house}</div>
+    <div><h3>${a.nombre}</h3><div class="meta">${a.comuna}, ${a.region}</div>
+    <div class="chips"><span class="chip">${camasLibres(a)} camas libres</span><span class="chip">Desde ${clp(desde(a))} por noche</span><span class="chip">Pago en el recinto</span></div></div>
+    <div class="act"><button class="btn" data-act="alojamiento" data-id="${a.id}">Ver camas</button></div></div>`).join('') || '<div class="row"><div></div><div>Sin resultados. Pruebe con otra comuna o menos camas.</div></div>'}</div>
+  </div>` + foot;
+}, ficha:{tipo:'Externa, en pantalla (salida de red)', aud:'Contratista (usuario externo)', met:'Pantalla web con hipervínculos; lista con sombreado alterno', frec:'Por demanda, en cada búsqueda', fuente:'D2 Alojamientos y Camas (Alojamiento, Comuna, Cama, DetalleReserva)', proc:'3 Buscar alojamiento', campos:'nombre, comuna, región, camas libres, precio_noche mínimo'}},
+
+{id:'s02', grupo:'Contratista', nombre:'Ficha de alojamiento y camas', render(){
+  const a = ALOJ.find(x => x.id === S.aloj);
+  const inCart = k => S.cart.some(i => i.key === k);
+  const n = S.cart.length;
+  return appnav('Buscar', 'Contratista · Constructora Valle Sur') + `<div class="content">
+  <p class="flow"><a href="#s01" data-act="go" data-to="s01">← Volver a resultados</a></p>
+  <h1>${a.nombre}</h1><p class="sub">${a.comuna}, ${a.region} · Anfitrión: ${a.anf}</p><p>${a.desc}</p>
+  <div class="filters"><label class="f">Ingreso<input type="date" id="ingreso" value="${S.ingreso}"></label><label class="f">Salida<input type="date" id="salida" value="${S.salida}"></label><span class="meta">${nights()} noches</span></div>
+  ${a.rooms.map((r, ri) => `<div class="room"><header><span>${r.n}</span><span class="meta">${r.camas.length} camas</span></header>
+   <div class="scroll"><table><tbody>${r.camas.map((c, ci) => { const k = `${a.id}-${ri}-${ci}`; return `<tr><td>${c[0]}</td><td class="num">${clp(c[1])} / noche</td>
+    <td>${c[2] ? '<span class="pill ok">Disponible</span>' : '<span class="pill n">Ocupada en esas fechas</span>'}</td>
+    <td class="num">${c[2] ? (inCart(k) ? `<button class="btn alt sm" data-act="rmcama" data-key="${k}">Quitar</button>` : `<button class="btn sm" data-act="addcama" data-key="${k}" data-room="${r.n}" data-tipo="${c[0]}" data-precio="${c[1]}" data-aloj="${a.id}">Agregar al carro</button>`) : ''}</td></tr>`; }).join('')}</tbody></table></div></div>`).join('')}
+  <div class="cartbar"><b>Carro de reserva</b><span>${n} cama${n === 1 ? '' : 's'} · ${clp(totalReserva())} estimado</span><button class="btn go" data-act="go" data-to="s03">Ver carro</button></div>
+  </div>` + foot;
+}, ficha:{tipo:'Externa, en pantalla (salida de red)', aud:'Contratista', met:'Pantalla web; botones «Agregar al carro» que disparan entradas sucesivas', frec:'Por demanda', fuente:'D2 (Alojamiento, Habitación, Cama) y D3 (DetalleReserva, para calcular disponibilidad)', proc:'3 Buscar alojamiento / 4.A Verificar disponibilidad', campos:'nombre de habitación, tipo_cama, precio_noche, estado de disponibilidad'}},
+
+{id:'s03', grupo:'Contratista', nombre:'Carro de reserva', render(){
+  const n = nights(); const it = S.cart; const a = ALOJ.find(x => x.id === (it[0] ? it[0].aloj : S.aloj));
+  return appnav('Buscar', 'Contratista · Constructora Valle Sur') + `<div class="content">
+  ${steps(['Elegir camas','Carro de reserva','Datos de la reserva','Código de reserva'], 1)}
+  <h1>Carro de reserva</h1><p class="sub">${a.nombre}, ${a.comuna} · ${fdate(S.ingreso)} a ${fdate(S.salida)} (${n} noches)</p>
+  ${it.length ? `<div class="scroll"><table><thead><tr><th>Cama</th><th>Habitación</th><th class="num">Precio noche</th><th class="num">Noches</th><th class="num">Subtotal</th><th></th></tr></thead><tbody>
+  ${it.map(i => `<tr><td>${i.tipo}</td><td>${i.room}</td><td class="num">${clp(i.precio)}</td><td class="num">${n}</td><td class="num">${clp(i.precio * n)}</td><td><button class="btn alt sm" data-act="rmcama" data-key="${i.key}">Quitar</button></td></tr>`).join('')}</tbody></table></div>
+  <div class="totals"><div><span>Camas</span><span>${it.length}</span></div><div class="t"><span>Total estimado</span><span>${clp(totalReserva())}</span></div></div>
+  <div class="note info"><b>La estadía se paga en el recinto.</b> Al confirmar recibirá un código de reserva para presentar al anfitrión. No se cobra nada en línea.</div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn alt" data-act="go" data-to="s02">Agregar más camas</button><button class="btn go" data-act="go" data-to="e04">Continuar con los datos de la reserva</button></div>`
+  : `<div class="note">El carro está vacío. <a href="#s01" data-act="go" data-to="s01">Buscar alojamiento</a></div>`}
+  </div>` + foot;
+}, ficha:{tipo:'Externa con regreso (documento de respuesta en pantalla)', aud:'Contratista', met:'Pantalla web; el botón «Confirmar reserva» regresa datos al sistema', frec:'Por demanda', fuente:'Datos de sesión del carro; precio_noche desde D2', proc:'4.A Verificar disponibilidad y bloquear camas', campos:'tipo_cama, habitación, precio_noche_pactado, noches, subtotal, total estimado'}},
+
+{id:'s04', grupo:'Contratista', nombre:'Comprobante de reserva con código', render(){
+  const n = nights(); const a = ALOJ.find(x => x.id === (S.cart[0] ? S.cart[0].aloj : S.aloj));
+  const tabs = `<div class="tabs"><button class="${S.tab === 'pantalla' ? 'on' : ''}" data-act="tab" data-t="pantalla">Pantalla</button><button class="${S.tab === 'carta' ? 'on' : ''}" data-act="tab" data-t="carta">Versión imprimible (carta)</button></div>`;
+  const lines = S.cart.map(i => `<tr><td>${i.tipo}</td><td>${i.room}</td><td class="num">${clp(i.precio)}</td><td class="num">${clp(i.precio * n)}</td></tr>`).join('');
+  const body = S.tab === 'pantalla' ? `<div class="note okk"><b>Reserva registrada.</b> Presente este código al llegar a ${a.nombre} y pague la estadía en el recinto.</div>
+    <p>Código de reserva</p><p><span class="code">${S.codigo}</span> <button class="btn alt sm" data-act="copy">Copiar código</button> <span class="meta" id="copied"></span></p>
+    <dl class="kv" style="margin-top:14px"><dt>Estado</dt><dd><span class="pill warn">PENDIENTE de pago en recinto</span></dd><dt>Alojamiento</dt><dd>${a.nombre}, ${a.comuna}</dd><dt>Estadía</dt><dd>${fdate(S.ingreso)} a ${fdate(S.salida)} (${n} noches)</dd><dt>Camas</dt><dd>${S.cart.length}</dd><dt>Total a pagar en recinto</dt><dd>${clp(totalReserva())} (efectivo o transferencia)</dd></dl>
+    <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn alt" data-act="tab" data-t="carta">Ver versión imprimible</button><button class="btn" data-act="go" data-to="s01">Volver a buscar</button></div>`
+  : `<div class="paper"><h2>Comprobante de reserva HospedaRuta</h2><div>Documento de respuesta · Pago en el recinto</div><hr>
+     <table><tbody><tr><td><b>Contratista</b></td><td>Constructora Valle Sur (RUT 76.***.***-*)</td></tr><tr><td><b>Alojamiento</b></td><td>${a.nombre}, ${a.comuna}</td></tr><tr><td><b>Estadía</b></td><td>${fdate(S.ingreso)} a ${fdate(S.salida)} (${n} noches)</td></tr><tr><td><b>Emitido</b></td><td>${fdate('2026-11-21')}</td></tr></tbody></table><hr>
+     <table><thead><tr><th>Cama</th><th>Habitación</th><th class="num">Noche</th><th class="num">Subtotal</th></tr></thead><tbody>${lines}</tbody></table>
+     <p style="text-align:right"><b>Total a pagar en el recinto: ${clp(totalReserva())}</b></p>
+     <p style="font-size:12px;color:#444">Presente este documento al ingresar. La reserva se mantiene hasta las 20:00 del día de ingreso. Datos personales protegidos según la Ley N.º 19.628.</p>
+     <div class="cut"></div>
+     <table><tbody><tr><td>Código de reserva</td><td><span class="code" style="color:#111;border-color:#111;font-size:22px">${S.codigo}</span></td></tr><tr><td>Total pagado</td><td>________________</td></tr><tr><td>Firma del anfitrión</td><td>________________</td></tr></tbody></table></div>`;
+  return appnav('Mis reservas', 'Contratista · Constructora Valle Sur') + `<div class="content">${steps(['Elegir camas','Carro de reserva','Datos de la reserva','Código de reserva'], 3)}<h1>Comprobante de reserva</h1><p class="sub">Salida con regreso: el código vuelve al sistema cuando el anfitrión confirma el pago.</p>${tabs}${body}</div>` + foot;
+}, ficha:{tipo:'Externa con regreso (pantalla + forma imprimible con parte desprendible)', aud:'Contratista y anfitrión', met:'Pantalla web y versión imprimible tamaño carta (impresora láser o PDF); parte inferior perforada', frec:'Una vez por reserva confirmada', fuente:'D3 Reservas (Reserva, DetalleReserva)', proc:'4.B Generar reserva y código de pago; 6.B al regresar el código', campos:'codigo_reserva, estado, fechas, camas, precio_noche_pactado, total'}},
+
+{id:'s05', grupo:'Anfitrión · suscripción y Webpay', nombre:'Planes de suscripción', render(){
+  return appnav('Planes', 'Anfitrión · María Soto') + `<div class="content">
+  ${steps(['Elegir plan','Carro de compras','Pago con Webpay','Comprobante'], 0)}
+  <h1>Planes para anfitriones</h1><p class="sub">Publique sus alojamientos y reciba reservas de cuadrillas. Precios en pesos chilenos, IVA incluido (valores de ejemplo).</p>
+  <div class="plans">${PLANES.map(p => `<div class="plan ${p.id === S.plan ? 'sel' : ''}"><h3>${p.nombre}</h3><div class="p">${clp(p.precio)}<small style="font-size:15px;color:var(--muted)"> /mes</small></div>
+   <ul>${p.extra.map(x => `<li>${x}</li>`).join('')}</ul>
+   <button class="btn ${p.id === S.plan ? 'go' : ''}" data-act="plan" data-id="${p.id}">${p.id === S.plan ? 'Agregar al carro' : 'Elegir plan'}</button></div>`).join('')}</div>
+  <div class="note info">Cada plan limita los alojamientos activos (campo <b>max_alojamientos</b> de la tabla Plan). Solo la suscripción se cobra en línea.</div>
+  </div>` + foot;
+}, ficha:{tipo:'Externa, en pantalla (catálogo de comercio electrónico)', aud:'Anfitrión', met:'Pantalla web con tarjetas, hipervínculos y botón de compra', frec:'Por demanda', fuente:'D4 Suscripciones (Plan)', proc:'5 Gestionar suscripción', campos:'nombre, precio_mensual, max_alojamientos'}},
+
+{id:'s06', grupo:'Anfitrión · suscripción y Webpay', nombre:'Carro de compras de suscripción', render(){
+  const p = planSel(); const ini = '2026-11-22'; const ven = addMonths(ini, S.meses);
+  return appnav('Planes', 'Anfitrión · María Soto') + `<div class="content">
+  ${steps(['Elegir plan','Carro de compras','Pago con Webpay','Comprobante'], 1)}
+  <h1>Carro de compras</h1><p class="sub">Revise su suscripción antes de pagar.</p>
+  <div class="scroll"><table><thead><tr><th>Producto</th><th>Período</th><th class="num">Precio mensual</th><th class="num">Meses</th><th class="num">Subtotal</th></tr></thead><tbody>
+   <tr><td><b>Plan ${p.nombre}</b><div class="meta">Hasta ${p.max} alojamiento${p.max > 1 ? 's' : ''} activos</div></td><td>${fdate(ini)} a ${fdate(ven)}</td><td class="num">${clp(p.precio)}</td>
+   <td class="num"><select id="meses" aria-label="Meses">${[1, 3, 6, 12].map(m => `<option ${m === S.meses ? 'selected' : ''}>${m}</option>`).join('')}</select></td><td class="num">${clp(totalSub())}</td></tr></tbody></table></div>
+  <div class="totals"><div><span>Neto</span><span>${clp(totalSub() / 1.19)}</span></div><div><span>IVA 19%</span><span>${clp(totalSub() - totalSub() / 1.19)}</span></div><div class="t"><span>Total a pagar</span><span>${clp(totalSub())}</span></div></div>
+  <label style="display:flex;gap:8px;align-items:center;margin:14px 0"><input type="checkbox" id="terminos" ${S.terminos ? 'checked' : ''}> Acepto los términos y condiciones del servicio</label>
+  <div class="note info">Al pagar será dirigido al sitio seguro de Webpay Plus (Transbank). HospedaRuta no recibe ni guarda los datos de su tarjeta.</div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn alt" data-act="go" data-to="s05">Cambiar plan</button><button class="btn go" data-act="pagar" ${S.terminos ? '' : 'disabled'}>Pagar con Webpay</button></div>
+  </div>` + foot;
+}, ficha:{tipo:'Externa con regreso (carro de compras que dispara el pago)', aud:'Anfitrión', met:'Pantalla web; envía a la pasarela buy_order, session_id, amount y return_url', frec:'Por demanda', fuente:'D4 (Plan, Suscripcion)', proc:'5 Gestionar suscripción', campos:'plan, período, meses, neto, IVA, total (CLP, sin decimales para Webpay)'}},
+
+{id:'s07', grupo:'Anfitrión · suscripción y Webpay', nombre:'Redirección a Webpay Plus (simulada)', render(){
+  return `<div class="appnav"><b>Pasarela de pago (simulación del prototipo)</b><span class="who">Esta pantalla representa el sitio de Transbank; no se ingresan datos de tarjeta</span></div><div class="content">
+  ${steps(['Elegir plan','Carro de compras','Pago con Webpay','Comprobante'], 2)}
+  <div class="gate"><h2>Redirigiendo a Webpay Plus</h2>
+  <p class="lock">El navegador del anfitrión viaja al formulario de pago de Transbank con el token de la transacción. Allí se ingresan los datos de la tarjeta, fuera de HospedaRuta.</p>
+  <dl class="kv" style="text-align:left;margin:14px 0"><dt>buy_order</dt><dd>${S.orden}</dd><dt>session_id</dt><dd>S-MARIA-SOTO-0412</dd><dt>amount</dt><dd>${totalSub()} (CLP)</dd><dt>return_url</dt><dd>https://hospedaruta.cl/suscripcion/retorno</dd><dt>token_ws</dt><dd>${S.tbk.slice(0, 20)}…</dd></dl>
+  <p><b>Elija el resultado que desea simular:</b></p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+   <button class="btn" data-act="sim" data-r="ok">Pago aprobado</button><button class="btn bad" data-act="sim" data-r="rechazado">Pago rechazado</button>
+   <button class="btn alt" data-act="sim" data-r="anulado">Anular compra</button><button class="btn alt" data-act="sim" data-r="timeout">Tiempo excedido</button></div></div></div>`;
+}, ficha:{tipo:'Externa de tercero (formulario alojado por Transbank)', aud:'Anfitrión (tarjetahabiente)', met:'Redirección web a la pasarela y retorno por return_url', frec:'Una vez por intento de pago', fuente:'Respuestas del servicio create de Webpay Plus (token y url)', proc:'5 Gestionar suscripción (flujo HTTPS/API con la pasarela)', campos:'token_ws, url de pago; al volver: token_ws, TBK_TOKEN o TBK_ORDEN_COMPRA según el caso'}},
+
+{id:'s08', grupo:'Anfitrión · suscripción y Webpay', nombre:'Resultado del pago y comprobante', render(){
+  const p = planSel(); const ini = '2026-11-22'; const ven = addMonths(ini, S.meses);
+  let c;
+  if (S.pago === 'ok') c = `<div class="note okk"><b>Pago aprobado.</b> Su suscripción está activa y ya puede publicar alojamientos.</div>
+   <dl class="kv"><dt>Orden de compra</dt><dd>${S.orden}</dd><dt>Plan</dt><dd>${p.nombre} · ${S.meses} mes${S.meses > 1 ? 'es' : ''}</dd><dt>Vigencia</dt><dd>${fdate(ini)} a ${fdate(ven)}</dd><dt>Monto pagado</dt><dd>${clp(totalSub())}</dd><dt>Código de autorización</dt><dd>1213</dd><dt>Tarjeta</dt><dd>**** **** **** 6623</dd><dt>Tipo de pago</dt><dd>Débito (Redcompra) · sin cuotas</dd><dt>Estado</dt><dd><span class="pill ok">ACTIVA</span></dd></dl>
+   <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn go" data-act="go" data-to="s11">Ver correo de comprobante</button><button class="btn alt" data-act="go" data-to="s05">Volver a planes</button></div>`;
+  else if (S.pago === 'rechazado') c = `<div class="note err"><b>El pago fue rechazado por el emisor de la tarjeta.</b> No se realizó ningún cobro y su suscripción sigue sin activarse.</div><p>Puede reintentar con la misma tarjeta u otro medio de pago. Su carro se mantiene.</p><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn go" data-act="go" data-to="s06">Reintentar pago</button><button class="btn alt" data-act="go" data-to="s05">Cambiar plan</button></div>`;
+  else if (S.pago === 'anulado') c = `<div class="note"><b>Anuló la compra en Webpay.</b> No se realizó ningún cobro.</div><p>Su carro sigue guardado. Cuando quiera, vuelva a intentarlo.</p><div style="display:flex;gap:10px"><button class="btn go" data-act="go" data-to="s06">Volver al carro</button></div>`;
+  else c = `<div class="note"><b>Se agotó el tiempo del formulario de pago.</b> No se realizó ningún cobro.</div><p>Genere un nuevo intento desde el carro.</p><div style="display:flex;gap:10px"><button class="btn go" data-act="go" data-to="s06">Volver al carro</button></div>`;
+  const sw = `<div class="tabs" aria-label="Resultado simulado">${[['ok','Aprobado'],['rechazado','Rechazado'],['anulado','Anulado'],['timeout','Tiempo excedido']].map(x => `<button class="${S.pago === x[0] ? 'on' : ''}" data-act="sim" data-r="${x[0]}">${x[1]}</button>`).join('')}</div>`;
+  return appnav('Planes', 'Anfitrión · María Soto') + `<div class="content">${steps(['Elegir plan','Carro de compras','Pago con Webpay','Comprobante'], 3)}<h1>Resultado del pago</h1><p class="sub">Salida generada después de confirmar la transacción con Transbank. Cambie el escenario para ver cada caso.</p>${sw}${c}</div>` + foot;
+}, ficha:{tipo:'Externa, en pantalla (comprobante y mensajes de estado)', aud:'Anfitrión', met:'Pantalla web con cuatro escenarios: aprobado, rechazado, anulado y tiempo excedido', frec:'Una vez por intento de pago', fuente:'Respuesta de commit de Webpay Plus y D4 Suscripciones', proc:'5 Gestionar suscripción', campos:'buy_order, response_code, authorization_code, últimos 4 dígitos, payment_type_code, amount, vigencia, estado'}},
+
+{id:'s09', grupo:'Correos', nombre:'Aviso de reserva al anfitrión', render(){
+  const a = ALOJ[0]; const n = nights();
+  return `<div class="content"><h1>Correo electrónico</h1><p class="sub">Salida externa enviada por SMTP al registrarse una reserva (proceso 4.C).</p>` + mail('María Soto &lt;maria@residencialelarriero.cl&gt;', 'Nueva reserva ' + S.codigo + ' en ' + a.nombre, `
+  <h2>Tiene una nueva reserva</h2><p>Una cuadrilla reservó camas en <b>${a.nombre}</b>.</p>
+  <dl class="kv"><dt>Código de reserva</dt><dd><b>${S.codigo}</b></dd><dt>Contratista</dt><dd>Constructora Valle Sur · +56 9 5555 0000</dd><dt>Estadía</dt><dd>${fdate(S.ingreso)} a ${fdate(S.salida)} (${n} noches)</dd><dt>Camas</dt><dd>${S.cart.length} (${S.cart.map(i => i.room + ' · ' + i.tipo).join('; ')})</dd><dt>Total a cobrar</dt><dd>${clp(totalReserva())}</dd></dl>
+  <p>Cuando reciba el pago, confirme la estadía ingresando el código en su panel.</p><p><button class="btn" data-act="go" data-to="e06">Confirmar la estadía en mi panel</button></p><p class="meta">Mensaje automático de HospedaRuta. No responda a este correo.</p>`) + `</div>`;
+}, ficha:{tipo:'Externa, correo electrónico', aud:'Anfitrión', met:'Correo HTML por servicio SMTP, texto corto y un solo botón', frec:'Por evento: cada reserva nueva', fuente:'D3 Reservas y D1 Usuarios', proc:'4.C Enviar notificación de reserva', campos:'codigo_reserva, contratista y teléfono, fechas, camas, total a cobrar'}},
+
+{id:'s10', grupo:'Correos', nombre:'Comprobante de estadía al contratista', render(){
+  const a = ALOJ[0]; const n = nights();
+  return `<div class="content"><h1>Correo electrónico</h1><p class="sub">Salida externa enviada cuando el anfitrión confirma el pago de la estadía (proceso 6.B).</p>` + mail('Constructora Valle Sur &lt;contacto@valleSur.cl&gt;', 'Comprobante de estadía ' + S.codigo, `
+  <h2>Estadía confirmada</h2><p>El anfitrión registró su pago en <b>${a.nombre}</b>.</p>
+  <dl class="kv"><dt>Código de reserva</dt><dd>${S.codigo}</dd><dt>Estado</dt><dd><span class="pill ok">PAGADA</span></dd><dt>Estadía</dt><dd>${fdate(S.ingreso)} a ${fdate(S.salida)} (${n} noches)</dd><dt>Monto pagado</dt><dd>${clp(totalReserva())}</dd><dt>Medio de pago</dt><dd>Transferencia</dd><dt>Fecha de pago</dt><dd>${fdate(S.ingreso)}</dd></dl>
+  <p class="meta">Guarde este correo como respaldo. Mensaje automático de HospedaRuta.</p>`) + `</div>`;
+}, ficha:{tipo:'Externa, correo electrónico', aud:'Contratista', met:'Correo HTML por servicio SMTP', frec:'Por evento: cada estadía confirmada', fuente:'D3 Reservas (estado, fecha_pago, medio_pago)', proc:'6.B Registrar estadía y pago', campos:'codigo_reserva, estado, fechas, monto, medio_pago, fecha_pago'}},
+
+{id:'s11', grupo:'Correos', nombre:'Comprobante de suscripción al anfitrión', render(){
+  const p = planSel(); const ini = '2026-11-22'; const ven = addMonths(ini, S.meses);
+  return `<div class="content"><h1>Correo electrónico</h1><p class="sub">Salida externa enviada al aprobarse el pago con Webpay (proceso 5).</p>` + mail('María Soto &lt;maria@residencialelarriero.cl&gt;', 'Suscripción activa · Plan ' + p.nombre, `
+  <h2>Su suscripción está activa</h2><p>Recibimos su pago con Webpay Plus. Este correo sirve como comprobante.</p>
+  <dl class="kv"><dt>Orden de compra</dt><dd>${S.orden}</dd><dt>Plan</dt><dd>${p.nombre} · ${S.meses} mes${S.meses > 1 ? 'es' : ''}</dd><dt>Vigencia</dt><dd>${fdate(ini)} a ${fdate(ven)}</dd><dt>Monto pagado</dt><dd>${clp(totalSub())}</dd><dt>Autorización</dt><dd>1213</dd><dt>Tarjeta</dt><dd>**** 6623</dd></dl>
+  <p><button class="btn" data-act="noop">Publicar mi alojamiento</button></p><p class="meta">Mensaje automático de HospedaRuta.</p>`) + `</div>`;
+}, ficha:{tipo:'Externa, correo electrónico', aud:'Anfitrión', met:'Correo HTML por servicio SMTP', frec:'Por evento: cada pago aprobado', fuente:'D4 Suscripciones (referencia_pasarela) y respuesta de Webpay', proc:'5 Gestionar suscripción', campos:'orden de compra, plan, vigencia, monto, autorización, últimos 4 dígitos'}},
+
+{id:'s12', grupo:'Reportes internos (soporte)', nombre:'Reporte detallado de suscripciones', render(){
+  const rows = [[1042,'María Soto','Profesional','2026-11-22','2027-02-22','ACTIVA','HR-SUB-004821',119970],[1041,'Pedro Vidal','Básico','2026-11-10','2026-12-10','ACTIVA','HR-SUB-004790',19990],[1040,'Sandra Muñoz','Flota','2026-09-05','2026-12-05','ACTIVA','HR-SUB-004512',269970],[1039,'Jorge Riquelme','Básico','2026-08-01','2026-11-01','VENCIDA','HR-SUB-004102',59970],[1038,'Elena Parra','Profesional','2026-10-02','2026-11-02','CANCELADA','HR-SUB-004366',39990]];
+  const pill = e => `<span class="pill ${e === 'ACTIVA' ? 'ok' : e === 'VENCIDA' ? 'warn' : 'n'}">${e}</span>`;
+  return `<div class="appnav"><b>Panel de soporte</b><span class="who">Rol: rol_soporte (solo lectura sobre vistas)</span></div><div class="content">
+  <h1>Suscripciones, noviembre 2026</h1><p class="sub">Reporte detallado: una fila por suscripción, sin resumir. Emitido ${fdate('2026-11-21')} · Página 1 de 1</p>
+  <div class="scroll"><table><thead><tr><th class="num">N.º</th><th>Anfitrión</th><th>Plan</th><th>Inicio</th><th>Vencimiento</th><th>Estado</th><th>Referencia pasarela</th><th class="num">Monto</th></tr></thead><tbody>
+  ${rows.map(r => `<tr><td class="num">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${fdate(r[3])}</td><td>${fdate(r[4])}</td><td>${pill(r[5])}</td><td>${r[6]}</td><td class="num">${clp(r[7])}</td></tr>`).join('')}</tbody>
+  <tfoot><tr><td colspan="7"><b>Total del listado (5 filas)</b></td><td class="num"><b>${clp(509890)}</b></td></tr></tfoot></table></div></div>`;
+}, ficha:{tipo:'Interna, reporte detallado', aud:'Administración y soporte de HospedaRuta', met:'Pantalla; exportable a PDF en hoja carta; correo programado al cierre del mes', frec:'Mensual y por demanda', fuente:'D4 Suscripciones (Suscripcion, Plan) y D1 Usuarios, mediante vista', proc:'5 Gestionar suscripción (consulta)', campos:'id_suscripcion, anfitrión, plan, fechas, estado, referencia_pasarela, monto'}},
+
+{id:'s13', grupo:'Reportes internos (soporte)', nombre:'Reporte resumido mensual', render(){
+  const bar = (l, v, max, f) => `<div class="bar"><span>${l}</span><div class="tr"><i style="width:${v / max * 100}%"></i></div><b class="num" style="text-align:right">${f(v)}</b></div>`;
+  return `<div class="appnav"><b>Panel de soporte</b><span class="who">Rol: rol_soporte (solo lectura sobre vistas)</span></div><div class="content">
+  <h1>Resumen de noviembre 2026</h1><p class="sub">Reporte resumido: totales para quien no necesita ver el detalle.</p>
+  <div class="tiles"><div class="tile">Ingresos por suscripción<b>${clp(509890)}</b></div><div class="tile">Suscripciones activas<b>3</b></div><div class="tile">Reservas del mes<b>48</b></div><div class="tile">Camas-noche reservadas<b>312</b></div></div>
+  <h2>Suscripciones por plan</h2>${bar('Básico', 1, 3, v => v)}${bar('Profesional', 1, 3, v => v)}${bar('Flota', 1, 3, v => v)}
+  <h2>Reservas por estado</h2>${bar('PAGADA', 31, 48, v => v)}${bar('CONFIRMADA', 9, 48, v => v)}${bar('PENDIENTE', 5, 48, v => v)}${bar('CANCELADA', 3, 48, v => v)}
+  <h2>Camas-noche por comuna</h2>${bar('Linares', 140, 140, v => v)}${bar('Collipulli', 96, 140, v => v)}${bar('Parral', 52, 140, v => v)}${bar('Mulchén', 24, 140, v => v)}
+  </div>`;
+}, ficha:{tipo:'Interna, reporte resumido', aud:'Gerencia y administración de HospedaRuta', met:'Pantalla con totales y barras; exportable a PDF', frec:'Mensual', fuente:'D3 Reservas, D4 Suscripciones y D2 (comuna), mediante vistas', proc:'Consulta de gestión sobre procesos 4, 5 y 6', campos:'ingresos, suscripciones por plan, reservas por estado, camas-noche por comuna'}},
+
+{id:'s14', grupo:'Reportes internos (soporte)', nombre:'Reporte de excepción', render(){
+  return `<div class="appnav"><b>Panel de soporte</b><span class="who">Rol: rol_soporte (solo lectura sobre vistas)</span></div><div class="content">
+  <h1>Casos que requieren atención</h1><p class="sub">Reporte de excepción: muestra solo lo que sale de la norma, filtrado antes de llegar al gerente. Corte: ${fdate('2026-11-21')}.</p>
+  <h2>Suscripciones que vencen en 14 días</h2>
+  <div class="scroll"><table><thead><tr><th>Anfitrión</th><th>Plan</th><th>Vence</th><th>Días</th><th>Alerta</th></tr></thead><tbody><tr class="sev w"><td>Sandra Muñoz</td><td>Flota</td><td>${fdate('2026-12-05')}</td><td class="num">14</td><td><span class="pill warn">Por vencer</span></td></tr></tbody></table></div>
+  <h2>Reservas PENDIENTES con más de 48 horas</h2>
+  <div class="scroll"><table><thead><tr><th>Código</th><th>Alojamiento</th><th>Ingreso</th><th>Horas</th><th>Alerta</th></tr></thead><tbody>
+  <tr class="sev"><td>HR-2M9D-1130</td><td>Cabañas Río Renaico</td><td>${fdate('2026-11-30')}</td><td class="num">71</td><td><span class="pill bad">Sin confirmar</span></td></tr>
+  <tr class="sev w"><td>HR-7T1B-1126</td><td>Hospedaje Los Quillayes</td><td>${fdate('2026-11-26')}</td><td class="num">52</td><td><span class="pill warn">Sin confirmar</span></td></tr></tbody></table></div>
+  <h2>Pagos de suscripción rechazados o abortados (7 días)</h2>
+  <div class="scroll"><table><thead><tr><th>Orden</th><th>Anfitrión</th><th>Resultado</th><th class="num">Monto</th></tr></thead><tbody>
+  <tr class="sev w"><td>HR-SUB-004803</td><td>Elena Parra</td><td><span class="pill bad">Rechazado</span></td><td class="num">${clp(39990)}</td></tr>
+  <tr class="sev w"><td>HR-SUB-004811</td><td>Luis Fuentes</td><td><span class="pill warn">Tiempo excedido</span></td><td class="num">${clp(19990)}</td></tr></tbody></table></div></div>`;
+}, ficha:{tipo:'Interna, reporte de excepción', aud:'Soporte y administración de HospedaRuta', met:'Pantalla con alertas por color y etiqueta; aviso por correo si hay casos críticos', frec:'Diario', fuente:'D3 Reservas y D4 Suscripciones, mediante vista con filtros', proc:'Consulta de gestión sobre procesos 4, 5 y 6', campos:'código, alojamiento o anfitrión, fecha, horas o días, tipo de alerta'}}
+];
+
+/* ---------- Render ---------- */
+const lab = id => id[0].toUpperCase() + '-' + id.slice(1);
+function drawIndex(cur){
+  let g = '', out = '';
+  SCREENS.forEach(s => { if (s.grupo !== g){ g = s.grupo; out += `<h3>${g}</h3>`; }
+    out += `<a href="#${s.id}" data-act="go" data-to="${s.id}" ${s.id === cur ? 'aria-current="page"' : ''}><em>${lab(s.id)}</em>${s.nombre}</a>`; });
+  document.getElementById('index').innerHTML = out;
+}
+function show(){
+  const id = (location.hash || '#e01').slice(1);
+  const s = SCREENS.find(x => x.id === id) || SCREENS[0];
+  drawIndex(s.id);
+  document.getElementById('crumb').innerHTML = `<span class="id">${lab(s.id)}</span><span>${s.grupo} › <b>${s.nombre}</b></span>`;
+  document.getElementById('frame').innerHTML = s.render();
+  let rows;
+  if (s.fichaE){ rows = s.fichaE; }
+  else { const f = s.ficha; rows = [['Tipo', f.tipo], ['Audiencia', f.aud], ['Método de implantación', f.met], ['Frecuencia', f.frec], ['Fuente de datos', f.fuente], ['Proceso del DFD', f.proc], ['Campos principales', f.campos]]; }
+  document.getElementById('ficha').innerHTML = `<h3>Ficha de la ${s.fichaE ? 'entrada' : 'salida'} ${lab(s.id)}</h3><dl>${rows.map(r => `<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('')}</dl>`;
+  document.title = `${lab(s.id)} ${s.nombre} · Prototipo HospedaRuta`;
+  if (s.id === 'e06' && S.e06err){ const el = document.getElementById('p-codigo'), e = document.getElementById('p-codigo-e'); if (el && e){ e.textContent = S.e06err; el.setAttribute('aria-invalid', 'true'); } }
+}
+const go = id => { if (location.hash === '#' + id) show(); else location.hash = id; window.scrollTo(0, 0); };
+window.addEventListener('hashchange', show);
+const store = el => { if (el.type === 'radio'){ if (el.checked) S.f[el.name] = el.value; } else if (el.type === 'checkbox') S.f[el.id] = el.checked; else if (el.id) S.f[el.id] = el.value; };
+const clearKeys = pref => Object.keys(S.f).forEach(k => { if (pref.some(p => k === p || k.startsWith(p))) delete S.f[k]; });
+const formOf = id => document.getElementById('f-' + id);
+
+document.addEventListener('submit', e => e.preventDefault());
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const d = el.dataset; const act = d.act;
+  if (act === 'noop'){ e.preventDefault(); return; }
+  if (act === 'go'){ e.preventDefault(); go(d.to); return; }
+  if (act === 'focus'){ e.preventDefault(); const t = document.getElementById(d.id); if (t){ t.focus(); t.scrollIntoView({block:'center'}); } return; }
+  if (act === 'alojamiento'){ S.aloj = +d.id; go('s02'); return; }
+  if (act === 'addcama'){
+    if (S.cart.length && S.cart[0].aloj !== +d.aloj) S.cart = [];
+    S.cart.push({aloj:+d.aloj, key:d.key, room:d.room, tipo:d.tipo, precio:+d.precio}); show(); return; }
+  if (act === 'rmcama'){ S.cart = S.cart.filter(i => i.key !== d.key); show(); return; }
+  if (act === 'tab'){ S.tab = d.t; show(); return; }
+  if (act === 'copy'){ try { navigator.clipboard.writeText(S.codigo).then(() => { document.getElementById('copied').textContent = 'Copiado'; }, () => {}); } catch (err) { document.getElementById('copied').textContent = 'Seleccione y copie el código'; } return; }
+  if (act === 'plan'){ if (S.plan === +d.id){ go('s06'); } else { S.plan = +d.id; show(); } return; }
+  if (act === 'pagar'){ S.orden = 'HR-SUB-' + String(Math.floor(Math.random() * 900000) + 100000); go('s07'); return; }
+  if (act === 'sim'){ S.pago = d.r; go('s08'); return; }
+  if (act === 'print'){ S.e06print = !S.e06print; show(); return; }
+  /* E-01 */
+  if (act === 'togglepw'){ const p = document.getElementById('pass'); const v = p.type === 'password'; p.type = v ? 'text' : 'password'; el.textContent = v ? 'Ocultar' : 'Mostrar'; return; }
+  if (act === 'clear'){ clearKeys(['tipo','rut','nombre','correo','fono','pass','acepto']); show(); return; }
+  if (act === 'submit-e01'){ const f = formOf('e01'); if (!vForm(f)) return;
+    S.done.e01 = {rut:fmtRut(val('rut')), nombre:val('nombre'), correo:val('correo'), tipo:val('tipo')}; RUTS.push(fmtRut(val('rut'))); show(); return; }
+  if (act === 'reset-e01'){ S.done.e01 = null; clearKeys(['tipo','rut','nombre','correo','fono','pass','acepto']); show(); return; }
+  /* E-02 */
+  if (act === 'addhab'){ S.hab.push({n:'Pieza ' + (S.hab.length + 1), camas:[{t:TIPOS_CAMA[0], p:''}]}); show(); return; }
+  if (act === 'rmhab'){ S.hab.splice(+d.h, 1); show(); return; }
+  if (act === 'addcamaH'){ const h = S.hab[+d.h], last = h.camas[h.camas.length - 1]; h.camas.push({t:last.t, p:last.p}); show(); return; }
+  if (act === 'rmcamaH'){ S.hab[+d.h].camas.splice(+d.c, 1); show(); return; }
+  if (act === 'submit-e02'){ const f = formOf('e02'), p = planSel(), extra = [];
+    if (misAlojIds().length >= p.max) extra.push(['', `Su plan ${p.nombre} permite ${p.max} alojamiento${p.max > 1 ? 's' : ''} y ya los usó. Cambie a un plan superior para publicar otro.`]);
+    if (S.hab.reduce((s, h) => s + h.camas.length, 0) > 30) extra.push(['', 'Un alojamiento puede tener hasta 30 camas.']);
+    if (!vForm(f, extra)) return;
+    const com = val('a-comuna'), id = Math.max(...ALOJ.map(a => a.id)) + 1;
+    ALOJ.push({id, nombre:val('a-nombre').trim(), comuna:com, region:regionDe(com), anf:'María Soto', desc:val('a-desc') || 'Alojamiento publicado desde el prototipo.', rooms:S.hab.map(h => ({n:h.n.trim(), camas:h.camas.map(c => [c.t, +c.p, 1])}))});
+    S.done.e02 = val('a-nombre').trim(); clearKeys(['a-','sv-']); S.hab = [{n:'Pieza 1', camas:[{t:TIPOS_CAMA[0], p:''}]}]; show(); window.scrollTo(0, 0); return; }
+  /* E-03 */
+  if (act === 'submit-e03'){ const f = formOf('e03'); if (!vForm(f)) return;
+    S.comuna = val('b-comuna', S.comuna); S.ingreso = val('b-ingreso', S.ingreso); S.salida = val('b-salida', S.salida); S.camas = +val('b-camas', S.camas); go('s01'); return; }
+  /* E-04 */
+  if (act === 'submit-e04'){ if (S.enviando) return; const f = formOf('e04'); if (!vForm(f)) return;
+    S.enviando = true; el.disabled = true; el.textContent = 'Procesando…';
+    setTimeout(() => { S.codigo = 'HR-' + Math.random().toString(36).slice(2, 6).toUpperCase().padEnd(4, 'X') + '-' + S.ingreso.slice(8, 10) + S.ingreso.slice(5, 7); S.tab = 'pantalla'; S.enviando = false; S.e06r = null; S.e06step = 0; go('s04'); }, 700); return; }
+  /* E-06 */
+  const buscar = code => { S.f['p-codigo'] = code; S.e06err = ''; S.e06ok = null;
+    const r = RESERVAS().find(x => x.codigo === code);
+    if (!r) S.e06err = 'No existe una reserva con ese código. Revise el comprobante.';
+    else if (!misAlojIds().includes(r.aloj)) S.e06err = 'Esta reserva corresponde al alojamiento de otro anfitrión. Solo puede confirmar reservas de sus alojamientos.';
+    else if (r.estado === 'PAGADA') S.e06err = `Esta reserva ya fue registrada como PAGADA el ${fdate(r.fpago)}. No se puede registrar dos veces.`;
+    else { S.e06r = r; S.e06step = 1; clearKeys(['p-monto','p-fecha','p-oper','medio']); }
+    show(); };
+  if (act === 'e06buscar'){ const c = document.getElementById('p-codigo'); c.value = MASK.codigo(c.value); store(c); if (vEl(c)) return; buscar(c.value); return; }
+  if (act === 'e06qr'){ buscar(S.codigo); return; }
+  if (act === 'e06otro'){ S.e06r = null; S.e06step = 0; S.e06err = ''; S.f['p-codigo'] = ''; show(); return; }
+  if (act === 'e06revisar'){ const f = formOf('e06'); if (!vForm(f)) return; S.e06step = 2; show(); return; }
+  if (act === 'e06corregir'){ S.e06step = 1; S.e06print = false; show(); return; }
+  if (act === 'e06confirmar'){ const r = S.e06r; S.pagadas[r.codigo] = val('p-fecha', r.ingreso);
+    S.e06ok = {codigo:r.codigo, monto:+val('p-monto'), medio:val('medio'), fecha:val('p-fecha', r.ingreso)};
+    S.e06r = null; S.e06step = 0; S.e06print = false; clearKeys(['p-']); clearKeys(['medio']); show(); window.scrollTo(0, 0); return; }
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.hab != null){ const h = S.hab[+t.dataset.hab]; if (t.dataset.cama != null) h.camas[+t.dataset.cama][t.dataset.k] = t.value; else h.n = t.value; }
+  else store(t);
+  if (t.dataset.count){ const c = document.getElementById(t.id + '-c'); if (c) c.textContent = t.value.length + ' / ' + t.dataset.count; }
+  if (t.getAttribute('aria-invalid') === 'true' && t.dataset.v) vEl(t);
+  if (t.id === 'b-ingreso' || t.id === 'b-salida'){ const i = document.getElementById('b-ingreso').value, o = document.getElementById('b-salida').value; const n = (i && o && o > i) ? Math.round((new Date(o) - new Date(i)) / 864e5) : 0; document.getElementById('b-noches').textContent = n ? `Estadía de ${n} noche${n === 1 ? '' : 's'} (cálculo automático).` : ''; }
+});
+document.addEventListener('focusout', e => {
+  const t = e.target; if (!t.dataset || !t.dataset.v || t.type === 'radio' || t.type === 'checkbox' || t.readOnly) return;
+  if (MASK[t.dataset.v] && t.value){ t.value = MASK[t.dataset.v](t.value); store(t); }
+  if (e.relatedTarget && e.relatedTarget.tagName === 'BUTTON') return; // el botón validará todo; evita mover el botón bajo el dedo
+  if (t.value !== '' || t.getAttribute('aria-invalid') === 'true') vEl(t);
+});
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.hab != null && t.dataset.k === 't'){ S.hab[+t.dataset.hab].camas[+t.dataset.cama].t = t.value; return; }
+  if (t.form && t.form.id && t.form.id.startsWith('f-')){
+    store(t);
+    if (t.type === 'radio' || t.type === 'checkbox' || t.tagName === 'SELECT') vEl(t);
+    if (t.id === 'a-comuna'){ document.getElementById('a-region').value = regionDe(t.value); }
+    if (t.name === 'medio'){ const w = document.getElementById('p-oper-w'); w.hidden = t.value !== 'Transferencia'; }
+    return;
+  }
+  if (t.id === 'comuna'){ S.comuna = t.value; show(); }
+  if (t.id === 'ingreso' && t.value){ S.ingreso = t.value; if (new Date(S.salida) <= new Date(S.ingreso)) S.salida = new Date(new Date(S.ingreso).getTime() + 864e5).toISOString().slice(0, 10); show(); }
+  if (t.id === 'salida' && t.value && new Date(t.value) > new Date(S.ingreso)){ S.salida = t.value; show(); } else if (t.id === 'salida'){ show(); }
+  if (t.id === 'meses'){ S.meses = +t.value; show(); }
+  if (t.id === 'terminos'){ S.terminos = t.checked; show(); }
+});
+show();
+</script>
+</body>
+</html>
